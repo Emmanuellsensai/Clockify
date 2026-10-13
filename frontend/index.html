@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Clockify — Geofenced Employee Attendance System</title>
+  <meta name="description" content="Digital geofenced employee clock-in and clock-out portal with GPS proximity verification.">
+  <link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body>
+
+  <!-- Top Navigation Bar -->
+  <header class="navbar">
+    <div class="brand">
+      <div class="brand-icon">⏱️</div>
+      <span>Clockify</span>
+    </div>
+    <nav class="nav-actions">
+      <a href="/admin" class="nav-link" id="navAdminLink">Admin Portal →</a>
+    </nav>
+  </header>
+
+  <!-- Main Employee Portal Container -->
+  <main class="container">
+
+    <!-- Active Employee Selector Card -->
+    <div class="employee-bar">
+      <div class="employee-info">
+        <div class="avatar" id="employeeAvatar">--</div>
+        <div class="employee-text">
+          <h3 id="employeeName">Loading Profile...</h3>
+          <p id="employeeDept">Department • ID</p>
+        </div>
+      </div>
+      <button class="btn-switch" id="btnSwitchEmployee" type="button">Switch Staff</button>
+    </div>
+
+    <!-- Live Digital Clock Section -->
+    <section class="card clock-section">
+      <div class="digital-clock" id="digitalClock">--:--:-- --</div>
+      <div class="date-display" id="dateDisplay">Loading date...</div>
+    </section>
+
+    <!-- Workplace GPS Radar Card -->
+    <section class="card radar-box">
+      <div class="radar-header">
+        <div class="radar-title">
+          <span class="pulse-indicator" id="statusPulse"></span>
+          <span>Geofence Radar</span>
+        </div>
+        <span class="status-badge badge-checking" id="statusBadge">Locating GPS...</span>
+      </div>
+      <div class="distance-details">
+        <div>
+          <div class="distance-value" id="distanceValue">Calculating...</div>
+          <div class="distance-sub" id="distanceSub">Acquiring device satellite position...</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Primary Action Button -->
+    <section class="action-box">
+      <button class="btn-primary-action" id="btnAction" type="button" disabled>
+        <span id="actionBtnText">Initializing...</span>
+      </button>
+    </section>
+
+    <!-- Today's Shift Metrics -->
+    <section class="shift-summary">
+      <div class="summary-card">
+        <span class="summary-label">Arrival Time</span>
+        <span class="summary-time" id="todayClockIn">--:--</span>
+      </div>
+      <div class="summary-card">
+        <span class="summary-label">Departure Time</span>
+        <span class="summary-time" id="todayClockOut">--:--</span>
+      </div>
+    </section>
+
+    <!-- Recent Attendance History -->
+    <section class="card history-section">
+      <h4>Recent Activity</h4>
+      <div class="history-list" id="historyList">
+        <!-- Rendered dynamically -->
+      </div>
+    </section>
+
+  </main>
+
+  <!-- Employee Switcher Modal -->
+  <div class="modal-overlay" id="modalSwitch" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3 id="modalTitle">Select Staff Profile</h3>
+        <button class="modal-close" id="modalClose" type="button" aria-label="Close modal">&times;</button>
+      </div>
+      <div class="employee-select-list" id="employeeSelectList">
+        <!-- Rendered dynamically -->
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast Notification Container -->
+  <div class="toast-container" id="toastContainer" aria-live="polite"></div>
+
+  <!-- JavaScript Modules -->
+  <script src="/static/js/api.js"></script>
+  <script src="/static/js/geo.js"></script>
+  <script src="/static/js/app.js"></script>
+</body>
+</html>

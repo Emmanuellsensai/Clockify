@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Clockify Admin — Workplace Geofence & Attendance Management</title>
+  <meta name="description" content="Executive administrative dashboard for geofence boundary configuration and attendance monitoring.">
+  <link rel="stylesheet" href="/static/css/style.css">
+  <link rel="stylesheet" href="/static/css/admin.css">
+</head>
+<body class="admin-body">
+
+  <!-- Admin Navigation Bar -->
+  <header class="navbar">
+    <div class="brand">
+      <div class="brand-icon">⚙️</div>
+      <span>Clockify Admin</span>
+    </div>
+    <nav class="nav-actions">
+      <a href="/" class="nav-link" id="navEmployeeLink">← Employee Portal</a>
+    </nav>
+  </header>
+
+  <!-- Admin Container -->
+  <main class="admin-container">
+
+    <!-- KPI Metric Cards Grid -->
+    <section class="kpi-grid">
+      <div class="kpi-card">
+        <span class="kpi-title">Total Staff</span>
+        <span class="kpi-number" id="kpiTotalStaff">0</span>
+        <span class="kpi-sub">Registered employees</span>
+      </div>
+
+      <div class="kpi-card green">
+        <span class="kpi-title">Present Today</span>
+        <span class="kpi-number" id="kpiPresent">0</span>
+        <span class="kpi-sub">Total arrivals recorded</span>
+      </div>
+
+      <div class="kpi-card">
+        <span class="kpi-title">Clocked In Now</span>
+        <span class="kpi-number" id="kpiClockedInNow">0</span>
+        <span class="kpi-sub">Active on-site shifts</span>
+      </div>
+
+      <div class="kpi-card yellow">
+        <span class="kpi-title">Late Arrivals</span>
+        <span class="kpi-number" id="kpiLate">0</span>
+        <span class="kpi-sub">After start cutoff time</span>
+      </div>
+
+      <div class="kpi-card red">
+        <span class="kpi-title">Absent</span>
+        <span class="kpi-number" id="kpiAbsent">0</span>
+        <span class="kpi-sub">Not yet clocked in</span>
+      </div>
+    </section>
+
+    <!-- Geofence Management & Quick Action Console -->
+    <section class="admin-grid-split">
+      <!-- Geofence Configuration Card -->
+      <div class="card">
+        <h3>📍 Workplace Geofence Perimeter</h3>
+        <p style="font-size: 0.85rem; color: var(--text-muted); margin-top: 0.25rem;">
+          Configure the official GPS coordinates and allowed radius for mobile verification.
+        </p>
+
+        <form class="geofence-form" id="geofenceForm" onsubmit="return false;">
+          <div class="form-group">
+            <label for="workplaceName">Workplace / Branch Name</label>
+            <input type="text" id="workplaceName" class="form-control" placeholder="e.g. Headquarters" required>
+          </div>
+
+          <div class="form-row">
+            <div class="form-group">
+              <label for="workplaceLat">Latitude</label>
+              <input type="number" step="any" id="workplaceLat" class="form-control" placeholder="6.5244" required>
+            </div>
+            <div class="form-group">
+              <label for="workplaceLon">Longitude</label>
+              <input type="number" step="any" id="workplaceLon" class="form-control" placeholder="3.3792" required>
+            </div>
+          </div>
+
+          <div class="form-row">
+            <div class="form-group">
+              <label for="workplaceRadius">Allowed Radius (Meters)</label>
+              <input type="number" id="workplaceRadius" class="form-control" value="150" min="10" required>
+            </div>
+            <div class="form-group">
+              <label for="workStartTime">Work Shift Start Time</label>
+              <input type="time" id="workStartTime" class="form-control" value="09:00" required>
+            </div>
+          </div>
+
+          <div style="display: flex; gap: 0.75rem; margin-top: 0.5rem; flex-wrap: wrap;">
+            <button type="button" class="btn-secondary" id="btnUseCurrentGps">
+              🎯 Use My Current Device GPS
+            </button>
+            <button type="button" class="btn-accent" id="btnSaveGeofence">
+              💾 Save Geofence Settings
+            </button>
+          </div>
+        </form>
+      </div>
+
+      <!-- Quick Demo & Health Info Card -->
+      <div class="card" style="display: flex; flex-direction: column; justify-content: space-between;">
+        <div>
+          <h3>⚡ Testing & Demonstration Tools</h3>
+          <p style="font-size: 0.85rem; color: var(--text-muted); margin-top: 0.25rem;">
+            Test edge cases, simulate multi-day attendance records, and review compliance.
+          </p>
+
+          <div style="margin-top: 1.25rem; font-size: 0.85rem; line-height: 1.6; color: var(--text-muted);">
+            <p><strong>Geofence Rules:</strong></p>
+            <ul style="padding-left: 1.25rem; margin-top: 0.25rem;">
+              <li>Clock-in is permitted only when device GPS is within the configured perimeter.</li>
+              <li>Arrivals after the specified shift start time are automatically flagged as <em>Late</em>.</li>
+              <li>Staff members cannot clock in twice in one day without clocking out first.</li>
+            </ul>
+          </div>
+        </div>
+
+        <div style="margin-top: 1.5rem; display: flex; gap: 0.75rem;">
+          <button type="button" class="btn-secondary" id="btnSeedDemo">
+            🧪 Populate Sample Attendance Data
+          </button>
+        </div>
+      </div>
+    </section>
+
+    <!-- Master Attendance Log Table -->
+    <section class="table-card">
+      <div class="table-header-bar">
+        <div>
+          <h3>📋 Employee Attendance Records</h3>
+          <p style="font-size: 0.8rem; color: var(--text-muted);">Real-time log of verified clock-in and clock-out events.</p>
+        </div>
+
+        <div class="table-filters">
+          <input type="date" id="filterDate" class="form-control" style="width: auto;">
+          <input type="text" id="searchEmployee" class="form-control" placeholder="Search staff or dept..." style="width: 180px;">
+          <button type="button" class="btn-secondary" id="btnApplyFilters">Filter</button>
+          <button type="button" class="btn-accent" id="btnExportCsv">📥 Export CSV</button>
+        </div>
+      </div>
+
+      <div class="table-responsive">
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>Employee</th>
+              <th>Date</th>
+              <th>Clock In</th>
+              <th>Clock Out</th>
+              <th>Status</th>
+              <th>Punctuality</th>
+              <th>Notes</th>
+            </tr>
+          </thead>
+          <tbody id="attendanceTableBody">
+            <!-- Dynamic Rows -->
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- Toast Notification Container -->
+  <div class="toast-container" id="toastContainer" aria-live="polite"></div>
+
+  <!-- JavaScript Modules -->
+  <script src="/static/js/api.js"></script>
+  <script src="/static/js/geo.js"></script>
+  <script src="/static/js/admin.js"></script>
+</body>
+</html>
