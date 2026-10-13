@@ -3,7 +3,13 @@ from pathlib import Path
 
 # Base Paths
 BASE_DIR = Path(__file__).resolve().parent.parent
-DB_PATH = os.path.join(BASE_DIR, "clockify.db")
+
+# On Vercel / serverless runtimes, root filesystem is read-only except /tmp
+if os.environ.get("VERCEL"):
+    DB_PATH = "/tmp/clockify.db"
+else:
+    DB_PATH = os.path.join(BASE_DIR, "clockify.db")
+
 FRONTEND_DIR = os.path.join(BASE_DIR, "frontend")
 
 # Default Workplace Geofence (Can be updated dynamically via Admin API)
