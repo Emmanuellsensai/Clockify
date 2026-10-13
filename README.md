@@ -30,7 +30,7 @@ Clockify is a digital attendance system that allows employees to clock in and cl
 
 | Member | Role | Assigned Modules & Files |
 |---|---|---|
-| **Tech Lead (You)** | Project Architect & Orchestrator | `run.py`, `backend/main.py`, Architecture, Git Reviews |
+| **Tech Lead (techAlhaji)** | Project Architect & Orchestrator | `run.py`, `backend/main.py`, Architecture, Git Reviews |
 | **Arogundade Habeebat** | Frontend UI/UX Developer | `frontend/index.html`, `frontend/css/style.css` |
 | **Jonathan Jeremiah** | Geolocation Specialist | `frontend/js/geo.js` (HTML5 GPS client & distance math) |
 | **Usang Emmanuel** | Backend Database Engineer | `backend/database.py`, `backend/models.py`, `backend/config.py` |
