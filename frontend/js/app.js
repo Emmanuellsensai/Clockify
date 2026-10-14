@@ -23,24 +23,28 @@ const elements = {
   btnSwitchEmployee: document.getElementById("btnSwitchEmployee"),
   modalSwitch: document.getElementById("modalSwitch"),
   modalClose: document.getElementById("modalClose"),
+  modalSearchInput: document.getElementById("modalSearchInput"),
   employeeSelectList: document.getElementById("employeeSelectList"),
-  
+
   // Radar / Status
   statusPulse: document.getElementById("statusPulse"),
   statusBadge: document.getElementById("statusBadge"),
   distanceValue: document.getElementById("distanceValue"),
   distanceSub: document.getElementById("distanceSub"),
-  
+  radarRingsEl: document.getElementById("radarRingsEl"),
+  radarDot: document.getElementById("radarDot"),
+
   // Action Button
   btnAction: document.getElementById("btnAction"),
   actionBtnText: document.getElementById("actionBtnText"),
-  
+
   // Today Summary
   todayClockIn: document.getElementById("todayClockIn"),
   todayClockOut: document.getElementById("todayClockOut"),
-  
+
   // History
   historyList: document.getElementById("historyList"),
+  historyCount: document.getElementById("historyCount"),
   toastContainer: document.getElementById("toastContainer")
 };
 
@@ -158,26 +162,40 @@ function updateTodaySummary() {
 
 // Render Attendance History
 function renderHistory(records) {
+  if (elements.historyCount) {
+    elements.historyCount.textContent = records && records.length > 0 ? `${records.length} record${records.length !== 1 ? 's' : ''}` : '0 records';
+  }
+
   if (!records || records.length === 0) {
-    elements.historyList.innerHTML = `<div style="text-align:center; color: var(--text-dim); padding: 1rem;">No recent attendance records.</div>`;
+    elements.historyList.innerHTML = `
+      <div class="empty-state">
+        <div class="empty-state-icon">📅</div>
+        <div class="empty-state-text">No recent attendance records found.</div>
+      </div>`;
     return;
   }
 
-  elements.historyList.innerHTML = records.map(r => `
-    <div class="history-item">
+  elements.historyList.innerHTML = records.map(r => {
+    const dateObj = r.date ? new Date(r.date) : null;
+    const dayNum = dateObj ? dateObj.getDate() : '--';
+    const dayMon = dateObj ? dateObj.toLocaleDateString([], { month: 'short' }).toUpperCase() : '---';
+    return `
+    <div class="history-item" role="listitem">
       <div class="history-item-left">
-        <span class="history-date">${r.date}</span>
-        <span style="font-size: 0.75rem; color: var(--text-muted);">
-          In: ${r.clock_in_time || 'N/A'} • Out: ${r.clock_out_time || 'In Progress'}
-        </span>
+        <div class="history-day-icon" aria-hidden="true">
+          <span class="history-day-num">${dayNum}</span>
+          <span class="history-day-mon">${dayMon}</span>
+        </div>
+        <div class="history-content">
+          <div class="history-date">${r.date}</div>
+          <div class="history-times">In: ${r.clock_in_time || 'N/A'} &nbsp;·&nbsp; Out: ${r.clock_out_time || 'In Progress'}</div>
+        </div>
       </div>
-      <div>
-        <span class="history-status-tag ${r.is_late ? 'tag-late' : 'tag-ontime'}">
-          ${r.is_late ? 'Late' : 'On Time'}
-        </span>
-      </div>
-    </div>
-  `).join("");
+      <span class="history-badge ${r.is_late ? 'tag-late' : 'tag-ontime'}">
+        ${r.is_late ? '⏰ Late' : '✓ On Time'}
+      </span>
+    </div>`;
+  }).join("");
 }
 
 // Query Live Location & Update Radar
@@ -203,8 +221,8 @@ function updateDistanceRadar(lat, lon, accuracy) {
   if (!AppState.workplace) return;
 
   const dist = GeoService.calculateDistance(
-    lat, lon, 
-    AppState.workplace.latitude, 
+    lat, lon,
+    AppState.workplace.latitude,
     AppState.workplace.longitude
   );
 
@@ -212,16 +230,18 @@ function updateDistanceRadar(lat, lon, accuracy) {
   const isInside = dist <= radius;
 
   elements.distanceValue.textContent = `${dist}m away`;
-  elements.distanceSub.textContent = `Target: ${AppState.workplace.name} (Within ${radius}m required, Accuracy: ±${accuracy}m)`;
+  elements.distanceSub.textContent = `${AppState.workplace.name} · Within ${radius}m required · GPS ±${accuracy}m`;
 
   if (isInside) {
     elements.statusBadge.className = "status-badge badge-inside";
-    elements.statusBadge.textContent = "Inside Workplace";
-    elements.statusPulse.className = "pulse-indicator inside";
+    elements.statusBadge.innerHTML = '<span class="pulse-indicator inside" id="statusPulse"></span> Inside Workplace';
+    if (elements.radarRingsEl) elements.radarRingsEl.className = "radar-rings status-inside";
+    if (elements.radarDot) elements.radarDot.className = "radar-center-dot status-inside";
   } else {
     elements.statusBadge.className = "status-badge badge-outside";
-    elements.statusBadge.textContent = "Outside Perimeter";
-    elements.statusPulse.className = "pulse-indicator outside";
+    elements.statusBadge.innerHTML = '<span class="pulse-indicator outside" id="statusPulse"></span> Outside Perimeter';
+    if (elements.radarRingsEl) elements.radarRingsEl.className = "radar-rings status-outside";
+    if (elements.radarDot) elements.radarDot.className = "radar-center-dot status-outside";
   }
 }
 
@@ -278,59 +298,98 @@ async function handleClockOut() {
 
 // Event Listeners & Modals
 function setupEventListeners() {
-  elements.btnSwitchEmployee.addEventListener("click", () => {
-    elements.modalSwitch.classList.add("open");
+  elements.btnSwitchEmployee.addEventListener('click', () => {
+    elements.modalSwitch.classList.add('open');
+    renderEmployeeModalList();
+    if (elements.modalSearchInput) elements.modalSearchInput.value = '';
+    setTimeout(() => elements.modalSearchInput && elements.modalSearchInput.focus(), 100);
   });
 
-  elements.modalClose.addEventListener("click", () => {
-    elements.modalSwitch.classList.remove("open");
+  elements.modalClose.addEventListener('click', () => {
+    elements.modalSwitch.classList.remove('open');
   });
 
-  elements.modalSwitch.addEventListener("click", (e) => {
+  elements.modalSwitch.addEventListener('click', (e) => {
     if (e.target === elements.modalSwitch) {
-      elements.modalSwitch.classList.remove("open");
+      elements.modalSwitch.classList.remove('open');
     }
   });
+
+  // Keyboard close
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') elements.modalSwitch.classList.remove('open');
+  });
+
+  // Modal search filter
+  if (elements.modalSearchInput) {
+    elements.modalSearchInput.addEventListener('input', (e) => {
+      renderEmployeeModalList(e.target.value);
+    });
+  }
 }
 
-function renderEmployeeModalList() {
-  elements.employeeSelectList.innerHTML = AppState.employeesList.map(emp => `
-    <div class="employee-option-card" data-id="${emp.id}">
-      <div>
-        <strong>${emp.name}</strong>
-        <div style="font-size:0.75rem; color:var(--text-muted);">${emp.department} (${emp.staff_id})</div>
-      </div>
-      <span style="color:var(--primary); font-weight:700;">Select →</span>
-    </div>
-  `).join("");
+function getInitials(name) {
+  return (name || '?').split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase();
+}
 
-  elements.employeeSelectList.querySelectorAll(".employee-option-card").forEach(card => {
-    card.addEventListener("click", async () => {
-      const id = parseInt(card.getAttribute("data-id"));
+function renderEmployeeModalList(filter = '') {
+  const filtered = filter
+    ? AppState.employeesList.filter(e =>
+        e.name.toLowerCase().includes(filter.toLowerCase()) ||
+        e.department.toLowerCase().includes(filter.toLowerCase())
+      )
+    : AppState.employeesList;
+
+  if (filtered.length === 0) {
+    elements.employeeSelectList.innerHTML = `<div style="text-align:center; color:var(--text-tertiary); padding:1.5rem 1rem; font-size:0.85rem;">No employees match your search.</div>`;
+    return;
+  }
+
+  elements.employeeSelectList.innerHTML = filtered.map(emp => {
+    const isActive = AppState.currentEmployee && AppState.currentEmployee.id === emp.id;
+    return `
+    <div class="employee-option-card ${isActive ? 'active' : ''}" data-id="${emp.id}" role="option" aria-selected="${isActive}">
+      <div class="emp-opt-avatar">${getInitials(emp.name)}</div>
+      <div class="emp-opt-info">
+        <div class="emp-opt-name">${emp.name}</div>
+        <div class="emp-opt-meta">${emp.department} &bull; ${emp.staff_id}</div>
+      </div>
+      <span class="emp-opt-select">${isActive ? '✓' : '→'}</span>
+    </div>`;
+  }).join('');
+
+  elements.employeeSelectList.querySelectorAll('.employee-option-card').forEach(card => {
+    card.addEventListener('click', async () => {
+      const id = parseInt(card.getAttribute('data-id'));
       AppState.currentEmployee = AppState.employeesList.find(e => e.id === id);
-      localStorage.setItem("clockify_active_emp_id", id);
+      localStorage.setItem('clockify_active_emp_id', id);
       renderEmployeeProfile();
-      elements.modalSwitch.classList.remove("open");
+      elements.modalSwitch.classList.remove('open');
       await refreshShiftData();
-      showToast(`Switched profile to ${AppState.currentEmployee.name}`, "warning");
+      showToast(`Switched to ${AppState.currentEmployee.name}`, 'warning');
     });
   });
 }
 
 // Toast Notifications
-function showToast(message, type = "info") {
-  const toast = document.createElement("div");
+const TOAST_ICONS = { success: '✓', error: '✕', warning: '⚠', info: 'ℹ' };
+
+function showToast(message, type = 'info') {
+  const toast = document.createElement('div');
   toast.className = `toast ${type}`;
-  toast.textContent = message;
+  toast.innerHTML = `
+    <span class="toast-icon">${TOAST_ICONS[type] || 'ℹ'}</span>
+    <span>${message}</span>
+  `;
 
   elements.toastContainer.appendChild(toast);
 
   setTimeout(() => {
-    toast.style.opacity = "0";
-    toast.style.transform = "translateX(100%)";
-    toast.style.transition = "all 0.3s ease";
-    setTimeout(() => toast.remove(), 300);
-  }, 4000);
+    toast.style.opacity = '0';
+    toast.style.transform = 'translateX(110%)';
+    toast.style.transition = 'all 0.35s cubic-bezier(0.4, 0, 1, 1)';
+    setTimeout(() => toast.remove(), 350);
+  }, 4500);
 }
 
 // Run on page load
