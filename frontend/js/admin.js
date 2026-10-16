@@ -71,7 +71,8 @@ function getLocalDateString(d = new Date()) {
 }
 
 function getStoredAdminToken() {
-  return localStorage.getItem(STORAGE_KEY_ADMIN_TOKEN) || sessionStorage.getItem(STORAGE_KEY_ADMIN_TOKEN);
+  const raw = localStorage.getItem(STORAGE_KEY_ADMIN_TOKEN) || sessionStorage.getItem(STORAGE_KEY_ADMIN_TOKEN);
+  return raw ? raw.replace(/^["']|["']$/g, '').trim() : null;
 }
 
 function getStoredAdminUser() {
@@ -160,9 +161,10 @@ async function refreshAllDashboardData(silent = false) {
     ]);
   } catch (err) {
     if (!silent) {
-      if (err.message && err.message.toLowerCase().includes("forbidden") || err.message.toLowerCase().includes("unauthorized")) {
+      const msg = (err.message || "").toLowerCase();
+      if (msg.includes("forbidden") || msg.includes("unauthorized") || msg.includes("access denied") || msg.includes("admin credentials required")) {
         handleAdminLogout();
-        showAdminLoginGate("Administrative authentication required.");
+        showAdminLoginGate("Administrative authentication required. Please sign in with Lead Tech credentials.");
       } else {
         showToast(err.message || "Failed to load dashboard data", "error");
       }

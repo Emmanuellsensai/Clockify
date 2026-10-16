@@ -7,9 +7,11 @@ const API_BASE = window.location.origin;
 
 function getAuthHeaders(customHeaders = {}) {
   const headers = { ...customHeaders };
-  const adminToken = localStorage.getItem("clockify_admin_token") || sessionStorage.getItem("clockify_admin_token");
+  let adminToken = localStorage.getItem("clockify_admin_token") || sessionStorage.getItem("clockify_admin_token");
   if (adminToken) {
+    adminToken = adminToken.replace(/^["']|["']$/g, '').trim();
     headers["x-admin-token"] = adminToken;
+    headers["Authorization"] = `Bearer ${adminToken}`;
   }
   return headers;
 }

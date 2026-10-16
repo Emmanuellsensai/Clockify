@@ -1,6 +1,8 @@
 import hashlib
-from fastapi import APIRouter, HTTPException, Header, Depends
+import hmac
+import time
 from typing import Optional
+from fastapi import APIRouter, HTTPException, Header, Depends, Query
 from backend.database import get_db
 from backend.schemas import PinVerification, AdminLoginRequest, EmployeeLoginRequest
 from backend.models import EmployeeModel
@@ -8,23 +10,87 @@ from backend.config import ADMIN_CONFIG
 
 router = APIRouter(prefix="/api/auth", tags=["Auth"])
 
-# In-memory authorized admin session tokens
-ADMIN_TOKENS = set([ADMIN_CONFIG["admin_secret_token"]])
+ADMIN_SECRET = ADMIN_CONFIG["admin_secret_token"]
+ADMIN_TOKENS = set([ADMIN_SECRET])
 
 def generate_admin_token(username: str) -> str:
-    secret = ADMIN_CONFIG["admin_secret_token"]
-    raw = f"{username}_{secret}".encode()
-    token = f"clockify_adm_{hashlib.sha256(raw).hexdigest()[:32]}"
+    """
+    Generates a cryptographically signed, stateless admin bearer token.
+    Format: clockify_adm.<username>.<timestamp>.<hmac_signature>
+    Works seamlessly across serverless functions, multi-worker containers, and reloads.
+    """
+    clean_user = username.strip().lower()
+    ts = str(int(time.time()))
+    payload = f"{clean_user}:{ts}".encode("utf-8")
+    sig = hmac.new(ADMIN_SECRET.encode("utf-8"), payload, hashlib.sha256).hexdigest()[:32]
+    token = f"clockify_adm.{clean_user}.{ts}.{sig}"
     ADMIN_TOKENS.add(token)
     return token
 
 def is_valid_admin_token(token: Optional[str]) -> bool:
+    """
+    Validates an admin token. Supports:
+    1. Direct secret token (ADMIN_SECRET)
+    2. Signed stateless tokens (clockify_adm.<user>.<ts>.<sig>)
+    3. Deterministic SHA256 hashes (clockify_adm_<hash>)
+    4. In-memory set (ADMIN_TOKENS)
+    """
     if not token:
         return False
-    clean = token[7:].strip() if token.startswith("Bearer ") else token.strip()
-    return clean in ADMIN_TOKENS or clean == ADMIN_CONFIG["admin_secret_token"]
+        
+    clean = token.strip()
+    if clean.lower().startswith("bearer "):
+        clean = clean[7:].strip()
+    clean = clean.strip("\"'")
 
-from fastapi import APIRouter, HTTPException, Header, Depends, Query
+    # 1. Master secret token or in-memory check
+    if clean == ADMIN_SECRET or clean in ADMIN_TOKENS:
+        return True
+
+    # 2. Cryptographically signed stateless token (clockify_adm.<user>.<ts>.<sig>)
+    if clean.startswith("clockify_adm."):
+        parts = clean.split(".")
+        if len(parts) == 4 and parts[0] == "clockify_adm":
+            user_part, ts_part, sig_part = parts[1], parts[2], parts[3]
+            payload = f"{user_part}:{ts_part}".encode("utf-8")
+            expected_sig = hmac.new(ADMIN_SECRET.encode("utf-8"), payload, hashlib.sha256).hexdigest()[:32]
+            if hmac.compare_digest(sig_part, expected_sig):
+                # Verify that this user is indeed an authorized admin
+                lead_names = [ADMIN_CONFIG["lead_tech_name"].lower(), "techalhaji", "emp009", "admin", "lead tech"]
+                if user_part in lead_names:
+                    return True
+                try:
+                    conn = get_db()
+                    cursor = conn.cursor()
+                    cursor.execute("""
+                        SELECT is_admin, department FROM employees 
+                        WHERE LOWER(name) = ? OR LOWER(staff_id) = ?
+                    """, (user_part, user_part))
+                    emp = cursor.fetchone()
+                    conn.close()
+                    if emp and (emp["is_admin"] == 1 or "lead" in emp["department"].lower()):
+                        return True
+                except Exception:
+                    pass
+
+    # 3. Deterministic SHA256 hashes (backward compatibility for previously issued tokens)
+    candidate_users = [
+        ADMIN_CONFIG["lead_tech_name"],
+        ADMIN_CONFIG["lead_tech_name"].lower(),
+        "techAlhaji",
+        "techalhaji",
+        "EMP009",
+        "emp009",
+        "admin",
+        "Lead Tech"
+    ]
+    for user_str in candidate_users:
+        raw = f"{user_str}_{ADMIN_SECRET}".encode("utf-8")
+        expected_hash = f"clockify_adm_{hashlib.sha256(raw).hexdigest()[:32]}"
+        if clean == expected_hash:
+            return True
+
+    return False
 
 def require_admin(
     x_admin_token: Optional[str] = Header(None),
