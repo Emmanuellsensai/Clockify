@@ -48,6 +48,7 @@
 4. **Exclusive Lead Tech Admin Access:** The administrative console is protected by cryptographic HMAC-SHA256 session tokens. Only verified administrators have access to workforce KPIs, geofence tuning, and attendance logs.
 5. **Real-Time Multi-Device Sync:** When multiple employees clock in simultaneously across different mobile devices or PCs, the admin dashboard updates live via background delta polling.
 6. **Mobile First & Ultra Responsive:** Fully usable and visually stunning across devices ranging from 320px mobile screens (iPhone SE, Android) to 4K desktop monitors.
+7. **Presence Defined by Shift Completion:** An employee is not marked "Present" upon clock-in. During an active shift, they are designated as "Clocked In" (Active on-site shift). Only upon clocking out is the employee marked "Present" (Shift Completed).
 
 ---
 
@@ -154,13 +155,13 @@ The frontend architecture was purposefully built with **zero external bloated UI
   - **Stateless Session Persistence:** Stores verified HMAC tokens in `sessionStorage` (`clockify_admin_token`) and validates them on every API exchange.
   - **Executive KPI Cards:** Live statistics showing:
     1. *Total Staff* (Registered employee count).
-    2. *Present Today* (Total clock-ins recorded for today).
-    3. *Clocked In Now* (Currently active on-site staff who have not yet clocked out).
+    2. *Present Today* (Completed shifts where employee has clocked out).
+    3. *Clocked In Now* (Currently active on-site staff who have clocked in and are awaiting clock-out).
     4. *Late Arrivals* (Arrivals recorded after the configured shift start time, e.g. 09:00).
     5. *Absent* (Registered staff who have not clocked in).
   - **Workplace Geofence Manager:** Allows administrators to view and edit workplace name, latitude, longitude, and allowed radius. Includes a one-click *"Use My Location as Perimeter"* button that captures the admin's device GPS coordinates and permanently updates the database.
   - **Live Multi-Device Polling:** Runs a silent background interval every 6 seconds to fetch new clock-in and clock-out events from the database. When 10 employees clock in across 10 different phones, the table refreshes seamlessly without disturbing page scroll.
-  - **All-Records & Today-Only Filter:** Provides a toggle button allowing the admin to inspect all historical attendance records or filter exclusively for today's logs.
+  - **Persistent Table Filter & Zero-Stale Caching:** Automatically defaults to today's records and permanently saves the administrator's display preference ("Today" vs "All Records") in `localStorage`. Enforces `Cache-Control: no-cache, no-store` and `fetch(..., { cache: 'no-store' })` to ensure that refreshing the page never flips the display or loses records.
   - **Direct CSV Export:** Downloads a standards-compliant `.csv` file formatted with employee names, departments, clock-in times, clock-out times, GPS coordinates, and punctuality flags.
 
 ### 3.6 Mobile Responsiveness Implementation

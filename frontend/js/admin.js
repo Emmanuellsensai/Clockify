@@ -8,6 +8,7 @@
 const STORAGE_KEY_GEOFENCE = "clockify_permanent_geofence";
 const STORAGE_KEY_ADMIN_TOKEN = "clockify_admin_token";
 const STORAGE_KEY_ADMIN_USER = "clockify_admin_user";
+const STORAGE_KEY_FILTER_MODE = "clockify_admin_filter_mode";
 
 // DOM Elements
 const adminElements = {
@@ -59,7 +60,9 @@ const adminElements = {
 };
 
 let allRecords = [];
-let showAllDates = true; // Default to showing all records so admin immediately sees all employee sign-ins
+// Retrieve persistent filter view preference from localStorage (defaults to today's records)
+const savedFilterMode = localStorage.getItem(STORAGE_KEY_FILTER_MODE);
+let showAllDates = (savedFilterMode === "all");
 let autoRefreshTimer = null;
 const AUTO_REFRESH_INTERVAL_MS = 6000;
 
@@ -92,15 +95,22 @@ async function initAdmin() {
   const today = getLocalDateString();
   if (adminElements.filterDate) {
     adminElements.filterDate.value = today;
-    adminElements.filterDate.disabled = true; // Disabled initially because showAllDates is active
+    adminElements.filterDate.disabled = true;
   }
 
-  if (adminElements.lblToggleAllDates) {
-    adminElements.lblToggleAllDates.textContent = "Filter Today Only";
-  }
-  if (adminElements.btnToggleAllDates) {
-    adminElements.btnToggleAllDates.classList.add("btn-primary");
-    adminElements.btnToggleAllDates.classList.remove("btn-ghost");
+  // Restore persistent toggle button state
+  if (showAllDates) {
+    if (adminElements.lblToggleAllDates) adminElements.lblToggleAllDates.textContent = "Filter Today Only";
+    if (adminElements.btnToggleAllDates) {
+      adminElements.btnToggleAllDates.classList.add("btn-primary");
+      adminElements.btnToggleAllDates.classList.remove("btn-ghost");
+    }
+  } else {
+    if (adminElements.lblToggleAllDates) adminElements.lblToggleAllDates.textContent = "Show All Records";
+    if (adminElements.btnToggleAllDates) {
+      adminElements.btnToggleAllDates.classList.remove("btn-primary");
+      adminElements.btnToggleAllDates.classList.add("btn-ghost");
+    }
   }
 
   if (adminElements.adminDateDisplay) {
@@ -287,6 +297,7 @@ function renderAttendanceTable(records) {
     // Robust employee name mapping
     const name = r.name || r.employee_name || (r.staff_id ? 'Staff ' + r.staff_id : 'Staff #' + r.employee_id);
     const dept = r.department || (r.staff_id ? r.staff_id : '');
+    const isClockedOut = r.status === 'CLOCKED_OUT';
     const active = r.status === 'CLOCKED_IN';
     const outCell = r.clock_out_time
       ? `<span class="td-time">${r.clock_out_time}</span>`
@@ -294,6 +305,12 @@ function renderAttendanceTable(records) {
     const gps = r.clock_in_distance != null
       ? `<div style="font-size:.7rem;color:var(--t3);margin-top:2px;font-family:var(--mono);">GPS ${r.clock_in_distance}m</div>`
       : '';
+
+    // An employee is only marked PRESENT once they clock out.
+    // While shift is active, they are marked as Clocked In.
+    const statusChip = isClockedOut
+      ? `<span class="chip chip-done">✓ Present</span>`
+      : `<span class="chip chip-in">● Clocked In</span>`;
 
     return `<tr>
       <td>
@@ -308,7 +325,7 @@ function renderAttendanceTable(records) {
       <td style="white-space:nowrap;color:var(--t2);font-size:.84rem;">${r.date}</td>
       <td><span class="td-time">${r.clock_in_time || '<span class="td-na">—</span>'}</span>${gps}</td>
       <td>${outCell}</td>
-      <td><span class="chip ${active ? 'chip-in' : 'chip-done'}">${active ? '● Active' : '◎ Done'}</span></td>
+      <td>${statusChip}</td>
       <td><span class="chip ${r.is_late ? 'chip-late' : 'chip-ontime'}">${r.is_late ? '⏰ Late' : '✓ On Time'}</span></td>
       <td style="font-size:.78rem;color:var(--t3);">${r.notes || 'GPS Verified'}</td>
     </tr>`;
@@ -497,6 +514,7 @@ function setupAdminListeners() {
   if (adminElements.btnToggleAllDates) {
     adminElements.btnToggleAllDates.addEventListener("click", async () => {
       showAllDates = !showAllDates;
+      localStorage.setItem(STORAGE_KEY_FILTER_MODE, showAllDates ? "all" : "today");
       if (showAllDates) {
         adminElements.lblToggleAllDates.textContent = "Filter Today Only";
         adminElements.btnToggleAllDates.classList.add("btn-primary");
@@ -507,7 +525,7 @@ function setupAdminListeners() {
         adminElements.btnToggleAllDates.classList.remove("btn-primary");
         adminElements.btnToggleAllDates.classList.add("btn-ghost");
         if (adminElements.filterDate) {
-          adminElements.filterDate.disabled = false;
+          adminElements.filterDate.disabled = true;
           adminElements.filterDate.value = getLocalDateString();
         }
       }
@@ -519,6 +537,7 @@ function setupAdminListeners() {
   if (adminElements.btnApplyFilters) {
     adminElements.btnApplyFilters.addEventListener("click", async () => {
       showAllDates = false;
+      localStorage.setItem(STORAGE_KEY_FILTER_MODE, "custom");
       if (adminElements.lblToggleAllDates) adminElements.lblToggleAllDates.textContent = "Show All Records";
       if (adminElements.btnToggleAllDates) {
         adminElements.btnToggleAllDates.classList.remove("btn-primary");

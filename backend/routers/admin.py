@@ -122,6 +122,7 @@ def update_geofence(payload: GeofenceUpdate):
 
 @router.get("/metrics", dependencies=[Depends(require_admin)])
 def get_admin_metrics(
+    response: Response,
     date: Optional[str] = Query(None, description="Single day (YYYY-MM-DD). Defaults to today."),
     start_date: Optional[str] = Query(None, description="Range start (YYYY-MM-DD, inclusive)."),
     end_date: Optional[str] = Query(None, description="Range end (YYYY-MM-DD, inclusive).")
@@ -131,6 +132,8 @@ def get_admin_metrics(
     Pass `date` for a single-day report, or `start_date`/`end_date` for a
     custom date-range aggregation report.
     """
+    response.headers["Cache-Control"] = "no-cache, no-store, must-revalidate, max-age=0"
+    response.headers["Pragma"] = "no-cache"
     try:
         day = validate_date(date, "date")
         start, end = validate_date_range(start_date, end_date)
@@ -150,6 +153,7 @@ def get_admin_metrics(
 
 @router.get("/records", dependencies=[Depends(require_admin)])
 def get_attendance_records(
+    response: Response,
     date: Optional[str] = Query(None, description="Filter by exact date (YYYY-MM-DD)."),
     start_date: Optional[str] = Query(None, description="Range start (YYYY-MM-DD, inclusive)."),
     end_date: Optional[str] = Query(None, description="Range end (YYYY-MM-DD, inclusive)."),
@@ -160,6 +164,8 @@ def get_attendance_records(
     search: Optional[str] = Query(None, description="Search employee name or staff ID.")
 ):
     """Retrieve attendance records with optional date, range and employee filters."""
+    response.headers["Cache-Control"] = "no-cache, no-store, must-revalidate, max-age=0"
+    response.headers["Pragma"] = "no-cache"
     try:
         day = validate_date(date, "date")
         start, end = validate_date_range(start_date, end_date)

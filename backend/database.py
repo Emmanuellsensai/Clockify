@@ -97,6 +97,7 @@ def init_db():
             ("EMP007", "Oluwasegun Adejumo", "adejumo@clockify.local", "Analytics & Admin", "1234", 0),
             ("EMP008", "Olajide Peter", "peter@clockify.local", "Frontend & Admin UI", "1234", 0),
             ("EMP009", "techAlhaji", "techalhaji@clockify.dev", "Lead Tech / Engineering Leadership", "1234", 1),
+            ("EMP010", "Amina Bello", "amina@clockify.local", "Operations & Quality Assurance", "1234", 0),
         ]
         cursor.executemany("""
             INSERT INTO employees (staff_id, name, email, department, pin, is_admin, created_at)
@@ -113,6 +114,14 @@ def init_db():
                 is_admin = 1 
             WHERE staff_id = 'EMP009' OR name = 'Lead Tech' OR id = 9
         """)
+        # Ensure EMP010 exists for 10-employee team testing
+        cursor.execute("SELECT COUNT(*) FROM employees WHERE staff_id = 'EMP010'")
+        if cursor.fetchone()[0] == 0:
+            now_iso = get_now().isoformat()
+            cursor.execute("""
+                INSERT INTO employees (staff_id, name, email, department, pin, is_admin, created_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?)
+            """, ("EMP010", "Amina Bello", "amina@clockify.local", "Operations & Quality Assurance", "1234", 0, now_iso))
         conn.commit()
 
     conn.close()

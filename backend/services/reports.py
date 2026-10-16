@@ -152,7 +152,7 @@ def fetch_attendance_records(
         FROM attendance_records a
         JOIN employees e ON a.employee_id = e.id
         WHERE {where_clause}
-        ORDER BY a.date DESC, a.clock_in_time DESC
+        ORDER BY a.date DESC, a.clock_in_time DESC, a.id DESC
     """, tuple(params))
     rows = cursor.fetchall()
     conn.close()
@@ -189,11 +189,13 @@ def generate_daily_report(date_str: Optional[str] = None) -> Dict[str, Any]:
     records = cursor.fetchall()
     conn.close()
 
-    total_present = len(records)
+    # An employee is only marked PRESENT once they have completed their shift (CLOCKED_OUT).
+    # Active on-site arrivals are counted under clocked_in_now.
+    total_present = sum(1 for r in records if r["status"] == "CLOCKED_OUT")
     clocked_in_now = sum(1 for r in records if r["status"] == "CLOCKED_IN")
-    clocked_out = sum(1 for r in records if r["status"] == "CLOCKED_OUT")
+    clocked_out = total_present
     late_arrivals = sum(1 for r in records if r["is_late"] == 1)
-    absent = max(0, total_employees - total_present)
+    absent = max(0, total_employees - (total_present + clocked_in_now))
 
     return {
         "date": date_str,
@@ -238,10 +240,11 @@ def generate_range_report(start_date: str, end_date: str) -> Dict[str, Any]:
     days = (datetime.strptime(end_date, DATE_FORMAT) -
             datetime.strptime(start_date, DATE_FORMAT)).days + 1
 
-    distinct_staff_present = len({r["employee_id"] for r in rows})
+    distinct_staff_present = len({r["employee_id"] for r in rows if r["status"] == "CLOCKED_OUT"})
+    completed_days = sum(1 for r in rows if r["status"] == "CLOCKED_OUT")
     total_records = len(rows)
     clocked_in_now = sum(1 for r in rows if r["status"] == "CLOCKED_IN")
-    clocked_out = sum(1 for r in rows if r["status"] == "CLOCKED_OUT")
+    clocked_out = completed_days
     late_arrivals = sum(1 for r in rows if r["is_late"] == 1)
     absent_employee_days = max(0, total_employees * days - total_records)
 
@@ -251,7 +254,7 @@ def generate_range_report(start_date: str, end_date: str) -> Dict[str, Any]:
         "days": days,
         "total_employees": total_employees,
         "total_present": distinct_staff_present,
-        "present_days": total_records,
+        "present_days": completed_days,
         "clocked_in_now": clocked_in_now,
         "clocked_out": clocked_out,
         "late_arrivals": late_arrivals,

@@ -20,7 +20,8 @@ const ApiClient = {
   async get(endpoint) {
     try {
       const response = await fetch(`${API_BASE}${endpoint}`, {
-        headers: getAuthHeaders()
+        headers: getAuthHeaders(),
+        cache: "no-store"
       });
       const data = await response.json();
       if (!response.ok) {
@@ -38,7 +39,8 @@ const ApiClient = {
       const response = await fetch(`${API_BASE}${endpoint}`, {
         method: "POST",
         headers: getAuthHeaders({ "Content-Type": "application/json" }),
-        body: JSON.stringify(payload)
+        body: JSON.stringify(payload),
+        cache: "no-store"
       });
       const data = await response.json();
       if (!response.ok) {
@@ -56,7 +58,8 @@ const ApiClient = {
       const response = await fetch(`${API_BASE}${endpoint}`, {
         method: "PUT",
         headers: getAuthHeaders({ "Content-Type": "application/json" }),
-        body: JSON.stringify(payload)
+        body: JSON.stringify(payload),
+        cache: "no-store"
       });
       const data = await response.json();
       if (!response.ok) {
