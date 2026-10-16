@@ -122,6 +122,24 @@ const ApiClient = {
     });
   },
 
+  syncShift(record) {
+    return this.post("/api/attendance/sync-shift", {
+      employee_id: record.employee_id,
+      date: record.date,
+      clock_in_time: record.clock_in_time,
+      clock_in_lat: record.clock_in_lat,
+      clock_in_lon: record.clock_in_lon,
+      clock_in_distance: record.clock_in_distance,
+      clock_out_time: record.clock_out_time,
+      clock_out_lat: record.clock_out_lat,
+      clock_out_lon: record.clock_out_lon,
+      clock_out_distance: record.clock_out_distance,
+      status: record.status,
+      is_late: record.is_late || false,
+      notes: record.notes || "Device sync"
+    });
+  },
+
   // Admin Endpoints
   getGeofence() {
     return this.get("/api/admin/geofence");

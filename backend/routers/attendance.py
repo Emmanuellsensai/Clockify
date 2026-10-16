@@ -1,8 +1,9 @@
-from fastapi import APIRouter, HTTPException, status
+from fastapi import APIRouter, HTTPException, status, Query
 from datetime import datetime
+from typing import Optional
 from backend.database import get_db
 from backend.config import get_now, get_today_str, get_current_time_str
-from backend.schemas import ClockInRequest, ClockOutRequest
+from backend.schemas import ClockInRequest, ClockOutRequest, SyncShiftRequest
 from backend.services.geofence import verify_geofence
 from backend.models import AttendanceModel
 
@@ -183,35 +184,114 @@ def clock_out(payload: ClockOutRequest):
     }
 
 @router.get("/status/{employee_id}")
-def get_daily_status(employee_id: int):
+def get_daily_status(employee_id: int, date: Optional[str] = Query(None)):
     """
     Returns today's clock-in status for the specified employee.
     """
     conn = get_db()
     cursor = conn.cursor()
-    today_str = get_today_str()
+    query_date = date.strip() if date else get_today_str()
 
     cursor.execute("""
         SELECT a.*, e.name, e.department, e.staff_id
         FROM attendance_records a
         JOIN employees e ON a.employee_id = e.id
         WHERE a.employee_id = ? AND a.date = ?
-    """, (employee_id, today_str))
+        ORDER BY a.id DESC
+        LIMIT 1
+    """, (employee_id, query_date))
     record = cursor.fetchone()
     conn.close()
 
     if not record:
         return {
             "status": "NOT_CLOCKED_IN",
-            "date": today_str,
+            "date": query_date,
             "record": None
         }
 
     return {
         "status": record["status"],
-        "date": today_str,
+        "date": query_date,
         "record": AttendanceModel.to_dict(record)
     }
+
+@router.post("/sync-shift")
+def sync_shift(payload: SyncShiftRequest):
+    """
+    Syncs or restores an attendance record from client storage into the database.
+    Ensures that attendance records persist across serverless instances and reboots.
+    """
+    conn = get_db()
+    cursor = conn.cursor()
+
+    cursor.execute("""
+        SELECT id, status FROM attendance_records
+        WHERE employee_id = ? AND date = ?
+    """, (payload.employee_id, payload.date))
+    existing = cursor.fetchone()
+
+    if existing:
+        cursor.execute("""
+            UPDATE attendance_records
+            SET clock_out_time = COALESCE(?, clock_out_time),
+                clock_out_lat = COALESCE(?, clock_out_lat),
+                clock_out_lon = COALESCE(?, clock_out_lon),
+                clock_out_distance = COALESCE(?, clock_out_distance),
+                status = ?,
+                notes = COALESCE(?, notes)
+            WHERE id = ?
+        """, (
+            payload.clock_out_time,
+            payload.clock_out_lat,
+            payload.clock_out_lon,
+            payload.clock_out_distance,
+            payload.status,
+            payload.notes,
+            existing["id"]
+        ))
+        conn.commit()
+        record_id = existing["id"]
+    else:
+        cursor.execute("""
+            INSERT INTO attendance_records (
+                employee_id, date, clock_in_time, clock_in_lat, clock_in_lon,
+                clock_in_distance, clock_out_time, clock_out_lat, clock_out_lon,
+                clock_out_distance, status, is_late, notes
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        """, (
+            payload.employee_id,
+            payload.date,
+            payload.clock_in_time,
+            payload.clock_in_lat,
+            payload.clock_in_lon,
+            payload.clock_in_distance,
+            payload.clock_out_time,
+            payload.clock_out_lat,
+            payload.clock_out_lon,
+            payload.clock_out_distance,
+            payload.status,
+            1 if payload.is_late else 0,
+            payload.notes or "Synchronized record"
+        ))
+        conn.commit()
+        record_id = cursor.lastrowid
+
+    cursor.execute("""
+        SELECT a.*, e.name, e.department, e.staff_id
+        FROM attendance_records a
+        JOIN employees e ON a.employee_id = e.id
+        WHERE a.id = ?
+    """, (record_id,))
+    rec = cursor.fetchone()
+    conn.close()
+
+    return {
+        "status": "success",
+        "message": "Shift record synchronized successfully",
+        "record": AttendanceModel.to_dict(rec)
+    }
+
 
 @router.get("/history/{employee_id}")
 def get_employee_history(employee_id: int, limit: int = 10):

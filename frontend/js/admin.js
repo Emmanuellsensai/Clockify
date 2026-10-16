@@ -59,9 +59,9 @@ const adminElements = {
 };
 
 let allRecords = [];
-let showAllDates = false;
+let showAllDates = true; // Default to showing all records so admin immediately sees all employee sign-ins
 let autoRefreshTimer = null;
-const AUTO_REFRESH_INTERVAL_MS = 8000;
+const AUTO_REFRESH_INTERVAL_MS = 6000;
 
 function getLocalDateString(d = new Date()) {
   const y = d.getFullYear();
@@ -92,6 +92,15 @@ async function initAdmin() {
   const today = getLocalDateString();
   if (adminElements.filterDate) {
     adminElements.filterDate.value = today;
+    adminElements.filterDate.disabled = true; // Disabled initially because showAllDates is active
+  }
+
+  if (adminElements.lblToggleAllDates) {
+    adminElements.lblToggleAllDates.textContent = "Filter Today Only";
+  }
+  if (adminElements.btnToggleAllDates) {
+    adminElements.btnToggleAllDates.classList.add("btn-primary");
+    adminElements.btnToggleAllDates.classList.remove("btn-ghost");
   }
 
   if (adminElements.adminDateDisplay) {
@@ -489,12 +498,12 @@ function setupAdminListeners() {
     adminElements.btnToggleAllDates.addEventListener("click", async () => {
       showAllDates = !showAllDates;
       if (showAllDates) {
-        adminElements.lblToggleAllDates.textContent = "Today Only";
+        adminElements.lblToggleAllDates.textContent = "Filter Today Only";
         adminElements.btnToggleAllDates.classList.add("btn-primary");
         adminElements.btnToggleAllDates.classList.remove("btn-ghost");
         if (adminElements.filterDate) adminElements.filterDate.disabled = true;
       } else {
-        adminElements.lblToggleAllDates.textContent = "All Dates";
+        adminElements.lblToggleAllDates.textContent = "Show All Records";
         adminElements.btnToggleAllDates.classList.remove("btn-primary");
         adminElements.btnToggleAllDates.classList.add("btn-ghost");
         if (adminElements.filterDate) {
@@ -510,7 +519,7 @@ function setupAdminListeners() {
   if (adminElements.btnApplyFilters) {
     adminElements.btnApplyFilters.addEventListener("click", async () => {
       showAllDates = false;
-      if (adminElements.lblToggleAllDates) adminElements.lblToggleAllDates.textContent = "All Dates";
+      if (adminElements.lblToggleAllDates) adminElements.lblToggleAllDates.textContent = "Show All Records";
       if (adminElements.btnToggleAllDates) {
         adminElements.btnToggleAllDates.classList.remove("btn-primary");
         adminElements.btnToggleAllDates.classList.add("btn-ghost");

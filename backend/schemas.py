@@ -52,3 +52,20 @@ class EmployeeLoginRequest(BaseModel):
     identifier: str = Field(..., description="Employee Staff ID, email, or full name")
     pin: str = Field(..., description="4-digit security PIN (default 1234)")
 
+# Client Attendance Synchronization
+class SyncShiftRequest(BaseModel):
+    employee_id: int
+    date: str
+    clock_in_time: Optional[str] = None
+    clock_in_lat: Optional[float] = None
+    clock_in_lon: Optional[float] = None
+    clock_in_distance: Optional[float] = None
+    clock_out_time: Optional[str] = None
+    clock_out_lat: Optional[float] = None
+    clock_out_lon: Optional[float] = None
+    clock_out_distance: Optional[float] = None
+    status: str
+    is_late: Optional[bool] = False
+    notes: Optional[str] = None
+
+

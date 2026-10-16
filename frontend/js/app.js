@@ -161,19 +161,93 @@ function renderEmployeeProfile() {
   elements.employeeAvatar.textContent = initials;
 }
 
-// Refresh Shift Status & History
+function getLocalDateString(d = new Date()) {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
+}
+
+function getShiftLockKey(employeeId, dateStr = getLocalDateString()) {
+  return `clockify_shift_lock_${employeeId}_${dateStr}`;
+}
+
+function getShiftLock(employeeId, dateStr = getLocalDateString()) {
+  try {
+    const raw = localStorage.getItem(getShiftLockKey(employeeId, dateStr));
+    return raw ? JSON.parse(raw) : null;
+  } catch (e) {
+    return null;
+  }
+}
+
+function saveShiftLock(employeeId, status, record, dateStr = getLocalDateString()) {
+  try {
+    const payload = {
+      employee_id: employeeId,
+      status: status,
+      date: dateStr,
+      record: record,
+      locked_at: new Date().toISOString()
+    };
+    localStorage.setItem(getShiftLockKey(employeeId, dateStr), JSON.stringify(payload));
+  } catch (e) {
+    console.error("Failed to save shift lock:", e);
+  }
+}
+
+// Refresh Shift Status & History with persistent lock priority
 async function refreshShiftData() {
   if (!AppState.currentEmployee) return;
+  const empId = AppState.currentEmployee.id;
+  const today = getLocalDateString();
+
+  // 1. Immediately apply persistent shift lock from device storage
+  const localLock = getShiftLock(empId, today);
+  if (localLock) {
+    AppState.shiftStatus = localLock.status;
+    AppState.todayRecord = localLock.record;
+    updateActionControls();
+    updateTodaySummary();
+  }
 
   try {
-    const statusData = await ApiClient.getStatus(AppState.currentEmployee.id);
-    AppState.shiftStatus = statusData.status;
-    AppState.todayRecord = statusData.record;
+    const statusData = await ApiClient.getStatus(empId);
+
+    // If device lock says CLOCKED_OUT, STRICTLY ENFORCE CLOCKED_OUT (Cannot reset on refresh!)
+    if (localLock && localLock.status === "CLOCKED_OUT") {
+      AppState.shiftStatus = "CLOCKED_OUT";
+      AppState.todayRecord = localLock.record || statusData.record;
+      // Auto-sync completed shift to backend if backend was missing it (e.g. serverless cold start)
+      if (statusData.status !== "CLOCKED_OUT" && localLock.record) {
+        try {
+          await ApiClient.syncShift(localLock.record);
+        } catch (e) {}
+      }
+    } else if (statusData.status === "CLOCKED_OUT") {
+      AppState.shiftStatus = "CLOCKED_OUT";
+      AppState.todayRecord = statusData.record;
+      saveShiftLock(empId, "CLOCKED_OUT", statusData.record, today);
+    } else if (localLock && localLock.status === "CLOCKED_IN") {
+      AppState.shiftStatus = "CLOCKED_IN";
+      AppState.todayRecord = localLock.record || statusData.record;
+      if (statusData.status === "NOT_CLOCKED_IN" && localLock.record) {
+        try {
+          await ApiClient.syncShift(localLock.record);
+        } catch (e) {}
+      }
+    } else {
+      AppState.shiftStatus = statusData.status;
+      AppState.todayRecord = statusData.record;
+      if (statusData.status === "CLOCKED_IN") {
+        saveShiftLock(empId, "CLOCKED_IN", statusData.record, today);
+      }
+    }
 
     updateActionControls();
     updateTodaySummary();
 
-    const historyData = await ApiClient.getHistory(AppState.currentEmployee.id);
+    const historyData = await ApiClient.getHistory(empId);
     renderHistory(historyData);
   } catch (err) {
     console.error("Failed to refresh shift:", err);
@@ -182,19 +256,23 @@ async function refreshShiftData() {
 
 // Update Action Button State
 function updateActionControls() {
-  elements.btnAction.disabled = false;
+  if (!elements.btnAction) return;
+
   elements.btnAction.classList.remove("btn-clock-out");
 
-  if (AppState.shiftStatus === "NOT_CLOCKED_IN") {
-    elements.actionBtnText.textContent = "Clock In Now";
-    elements.btnAction.onclick = handleClockIn;
-  } else if (AppState.shiftStatus === "CLOCKED_IN") {
-    elements.actionBtnText.textContent = "Clock Out";
-    elements.btnAction.classList.add("btn-clock-out");
-    elements.btnAction.onclick = handleClockOut;
-  } else if (AppState.shiftStatus === "CLOCKED_OUT") {
+  if (AppState.shiftStatus === "CLOCKED_OUT") {
     elements.actionBtnText.textContent = "Shift Completed Today";
     elements.btnAction.disabled = true;
+    elements.btnAction.onclick = null;
+  } else if (AppState.shiftStatus === "CLOCKED_IN") {
+    elements.actionBtnText.textContent = "Clock Out";
+    elements.btnAction.disabled = false;
+    elements.btnAction.classList.add("btn-clock-out");
+    elements.btnAction.onclick = handleClockOut;
+  } else {
+    elements.actionBtnText.textContent = "Clock In Now";
+    elements.btnAction.disabled = false;
+    elements.btnAction.onclick = handleClockIn;
   }
 }
 
@@ -292,6 +370,25 @@ function updateDistanceRadar(lat, lon, accuracy) {
 
 // Handle Clock In
 async function handleClockIn() {
+  if (!AppState.currentEmployee) return;
+  const empId = AppState.currentEmployee.id;
+  const today = getLocalDateString();
+  const lock = getShiftLock(empId, today);
+
+  if (AppState.shiftStatus === "CLOCKED_OUT" || (lock && lock.status === "CLOCKED_OUT")) {
+    showToast("Shift already completed for today. You cannot clock in again.", "warning");
+    AppState.shiftStatus = "CLOCKED_OUT";
+    updateActionControls();
+    return;
+  }
+
+  if (AppState.shiftStatus === "CLOCKED_IN" || (lock && lock.status === "CLOCKED_IN")) {
+    showToast("You are already clocked in for today.", "warning");
+    AppState.shiftStatus = "CLOCKED_IN";
+    updateActionControls();
+    return;
+  }
+
   elements.btnAction.disabled = true;
   elements.actionBtnText.textContent = "Verifying GPS Location...";
 
@@ -302,11 +399,17 @@ async function handleClockIn() {
 
     elements.actionBtnText.textContent = "Clocking In...";
     const res = await ApiClient.clockIn(
-      AppState.currentEmployee.id,
+      empId,
       loc.latitude,
       loc.longitude,
       loc.accuracy
     );
+
+    saveShiftLock(empId, "CLOCKED_IN", res.record, today);
+    AppState.shiftStatus = "CLOCKED_IN";
+    AppState.todayRecord = res.record;
+    updateActionControls();
+    updateTodaySummary();
 
     showToast(`Arrival verified! Clocked in at ${res.record.clock_in_time}`, "success");
     await refreshShiftData();
@@ -318,6 +421,18 @@ async function handleClockIn() {
 
 // Handle Clock Out
 async function handleClockOut() {
+  if (!AppState.currentEmployee) return;
+  const empId = AppState.currentEmployee.id;
+  const today = getLocalDateString();
+  const lock = getShiftLock(empId, today);
+
+  if (AppState.shiftStatus === "CLOCKED_OUT" || (lock && lock.status === "CLOCKED_OUT")) {
+    showToast("Shift already completed for today.", "info");
+    AppState.shiftStatus = "CLOCKED_OUT";
+    updateActionControls();
+    return;
+  }
+
   elements.btnAction.disabled = true;
   elements.actionBtnText.textContent = "Verifying Location...";
 
@@ -327,11 +442,17 @@ async function handleClockOut() {
 
     elements.actionBtnText.textContent = "Clocking Out...";
     const res = await ApiClient.clockOut(
-      AppState.currentEmployee.id,
+      empId,
       loc.latitude,
       loc.longitude,
       loc.accuracy
     );
+
+    saveShiftLock(empId, "CLOCKED_OUT", res.record, today);
+    AppState.shiftStatus = "CLOCKED_OUT";
+    AppState.todayRecord = res.record;
+    updateActionControls();
+    updateTodaySummary();
 
     showToast(`Departure recorded at ${res.record.clock_out_time}. Shift completed!`, "success");
     await refreshShiftData();
