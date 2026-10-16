@@ -20,6 +20,7 @@ const adminElements = {
   workStartTime: document.getElementById("workStartTime"),
   btnSaveGeofence: document.getElementById("btnSaveGeofence"),
   btnUseCurrentGps: document.getElementById("btnUseCurrentGps"),
+  geofenceSaveText: document.getElementById("geofenceSaveText"),
 
   // Table & Filters
   filterDate: document.getElementById("filterDate"),
@@ -32,14 +33,22 @@ const adminElements = {
   toastContainer: document.getElementById("toastContainer")
 };
 
+const STORAGE_KEY_GEOFENCE = "clockify_permanent_geofence";
 let allRecords = [];
+
+function getLocalDateString(d = new Date()) {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
+}
 
 // Initialize Admin Portal
 async function initAdmin() {
   setupAdminListeners();
 
-  // Set default filter date to today
-  const today = new Date().toISOString().split("T")[0];
+  // Set default filter date to today in local calendar time
+  const today = getLocalDateString();
   adminElements.filterDate.value = today;
 
   try {
@@ -65,15 +74,44 @@ async function loadMetrics(date) {
   }
 }
 
-// Load Geofence Configuration
+// Load Geofence Configuration with Permanent Persistence
 async function loadGeofenceSettings() {
+  let savedLocal = null;
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY_GEOFENCE);
+    if (raw) savedLocal = JSON.parse(raw);
+  } catch (e) {}
+
+  if (savedLocal) {
+    adminElements.workplaceName.value = savedLocal.name || "Workplace Headquarters";
+    adminElements.workplaceLat.value = savedLocal.latitude;
+    adminElements.workplaceLon.value = savedLocal.longitude;
+    adminElements.workplaceRadius.value = savedLocal.radius_meters || 150;
+    adminElements.workStartTime.value = savedLocal.work_start_time || "09:00";
+    if (adminElements.geofenceSaveText) {
+      adminElements.geofenceSaveText.textContent = `Permanent perimeter active: ${Number(savedLocal.latitude).toFixed(5)}, ${Number(savedLocal.longitude).toFixed(5)}`;
+    }
+  }
+
   try {
     const geo = await ApiClient.getGeofence();
-    adminElements.workplaceName.value = geo.name;
-    adminElements.workplaceLat.value = geo.latitude;
-    adminElements.workplaceLon.value = geo.longitude;
-    adminElements.workplaceRadius.value = geo.radius_meters;
-    adminElements.workStartTime.value = geo.work_start_time || "09:00";
+    if (savedLocal) {
+      // If backend has default/different coordinates (e.g. serverless cold-start reset), re-sync to saved permanent perimeter
+      const diff = Math.abs(geo.latitude - savedLocal.latitude) > 0.00005 ||
+                   Math.abs(geo.longitude - savedLocal.longitude) > 0.00005 ||
+                   parseFloat(geo.radius_meters) !== parseFloat(savedLocal.radius_meters);
+      if (diff) {
+        await ApiClient.updateGeofence(savedLocal);
+        console.log("Auto-synced permanent geofence to backend database");
+      }
+    } else {
+      localStorage.setItem(STORAGE_KEY_GEOFENCE, JSON.stringify(geo));
+      adminElements.workplaceName.value = geo.name;
+      adminElements.workplaceLat.value = geo.latitude;
+      adminElements.workplaceLon.value = geo.longitude;
+      adminElements.workplaceRadius.value = geo.radius_meters;
+      adminElements.workStartTime.value = geo.work_start_time || "09:00";
+    }
   } catch (err) {
     console.error("Failed to load geofence:", err);
   }
@@ -142,29 +180,59 @@ function setupAdminListeners() {
   // Save Geofence Form
   adminElements.btnSaveGeofence.addEventListener("click", async () => {
     try {
+      const lat = parseFloat(adminElements.workplaceLat.value);
+      const lon = parseFloat(adminElements.workplaceLon.value);
+      const radius = parseFloat(adminElements.workplaceRadius.value);
+      const name = adminElements.workplaceName.value.trim() || "Workplace Headquarters";
+      const startTime = adminElements.workStartTime.value || "09:00";
+
+      if (isNaN(lat) || isNaN(lon) || isNaN(radius)) {
+        showToast("Please enter valid latitude, longitude, and radius values.", "error");
+        return;
+      }
+
       const payload = {
-        name: adminElements.workplaceName.value,
-        latitude: parseFloat(adminElements.workplaceLat.value),
-        longitude: parseFloat(adminElements.workplaceLon.value),
-        radius_meters: parseFloat(adminElements.workplaceRadius.value),
-        work_start_time: adminElements.workStartTime.value
+        name: name,
+        latitude: lat,
+        longitude: lon,
+        radius_meters: radius,
+        work_start_time: startTime
       };
 
       await ApiClient.updateGeofence(payload);
-      showToast("Workplace geofence coordinates updated successfully!", "success");
+      localStorage.setItem(STORAGE_KEY_GEOFENCE, JSON.stringify(payload));
+      if (adminElements.geofenceSaveText) {
+        adminElements.geofenceSaveText.textContent = `Permanent perimeter active: ${lat.toFixed(5)}, ${lon.toFixed(5)}`;
+      }
+      showToast("Perimeter saved permanently! Preserved across page reloads.", "success");
     } catch (err) {
       showToast(err.message, "error");
     }
   });
 
-  // Use Current GPS as Office
+  // Use Current GPS as Office Perimeter (Immediately auto-saves permanently)
   adminElements.btnUseCurrentGps.addEventListener("click", async () => {
     try {
-      showToast("Acquiring current device coordinates...", "warning");
+      showToast("Acquiring device GPS coordinates...", "warning");
       const pos = await GeoService.getCurrentPosition();
       adminElements.workplaceLat.value = pos.latitude;
       adminElements.workplaceLon.value = pos.longitude;
-      showToast(`Filled current location (±${pos.accuracy}m). Click 'Save Coordinates' to apply.`, "success");
+
+      const payload = {
+        name: adminElements.workplaceName.value.trim() || "Admin Designated Perimeter",
+        latitude: pos.latitude,
+        longitude: pos.longitude,
+        radius_meters: parseFloat(adminElements.workplaceRadius.value) || 150,
+        work_start_time: adminElements.workStartTime.value || "09:00"
+      };
+
+      // Immediately auto-save to backend and localStorage so it is permanent
+      await ApiClient.updateGeofence(payload);
+      localStorage.setItem(STORAGE_KEY_GEOFENCE, JSON.stringify(payload));
+      if (adminElements.geofenceSaveText) {
+        adminElements.geofenceSaveText.textContent = `Permanent perimeter active: ${pos.latitude.toFixed(5)}, ${pos.longitude.toFixed(5)}`;
+      }
+      showToast(`📍 Set & permanently saved perimeter to your location (±${pos.accuracy}m)!`, "success");
     } catch (err) {
       showToast(err.message, "error");
     }

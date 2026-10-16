@@ -1,5 +1,22 @@
 import os
 from pathlib import Path
+from datetime import datetime, timezone, timedelta
+
+# Local Workplace Timezone: West Africa Time (WAT / UTC+1)
+# Lagos, Nigeria operates on UTC+1 year-round (no DST changes)
+WORKPLACE_TIMEZONE = timezone(timedelta(hours=1))
+
+def get_now() -> datetime:
+    """Returns current timezone-aware datetime in West Africa Time (UTC+1)"""
+    return datetime.now(WORKPLACE_TIMEZONE)
+
+def get_today_str() -> str:
+    """Returns today's date formatted as YYYY-MM-DD in WAT"""
+    return get_now().strftime("%Y-%m-%d")
+
+def get_current_time_str() -> str:
+    """Returns current time formatted as HH:MM:SS in WAT"""
+    return get_now().strftime("%H:%M:%S")
 
 # Base Paths
 BASE_DIR = Path(__file__).resolve().parent.parent

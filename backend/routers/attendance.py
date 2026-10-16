@@ -1,6 +1,7 @@
 from fastapi import APIRouter, HTTPException, status
 from datetime import datetime
 from backend.database import get_db
+from backend.config import get_now, get_today_str, get_current_time_str
 from backend.schemas import ClockInRequest, ClockOutRequest
 from backend.services.geofence import verify_geofence
 from backend.models import AttendanceModel
@@ -53,7 +54,7 @@ def clock_in(payload: ClockInRequest):
         )
 
     # 4. Check If Already Clocked In Today
-    today_str = datetime.now().strftime("%Y-%m-%d")
+    today_str = get_today_str()
     cursor.execute("""
         SELECT * FROM attendance_records 
         WHERE employee_id = ? AND date = ?
@@ -67,14 +68,17 @@ def clock_in(payload: ClockInRequest):
         else:
             raise HTTPException(status_code=400, detail="Shift already completed for today.")
 
-    # 5. Determine Late Arrival
-    now = datetime.now()
-    current_time_str = now.strftime("%H:%M:%S")
+    # 5. Determine Late Arrival (Evaluated in Local Workplace Timezone)
+    now = get_now()
+    current_time_str = get_current_time_str()
     start_time_str = geofence["work_start_time"] or "09:00"
     
-    # Check if arrival is after start time
-    work_start_dt = datetime.strptime(f"{today_str} {start_time_str}:00", "%Y-%m-%d %H:%M:%S")
-    is_late = 1 if now > work_start_dt else 0
+    # Check if arrival is after start time (HH:MM)
+    try:
+        start_hour, start_minute = map(int, start_time_str.split(":")[:2])
+    except Exception:
+        start_hour, start_minute = (9, 0)
+    is_late = 1 if (now.hour, now.minute) > (start_hour, start_minute) else 0
 
     # 6. Insert Attendance Record
     cursor.execute("""
@@ -121,7 +125,7 @@ def clock_out(payload: ClockOutRequest):
     cursor = conn.cursor()
 
     # 1. Find today's active shift
-    today_str = datetime.now().strftime("%Y-%m-%d")
+    today_str = get_today_str()
     cursor.execute("""
         SELECT * FROM attendance_records 
         WHERE employee_id = ? AND date = ?
@@ -150,7 +154,7 @@ def clock_out(payload: ClockOutRequest):
     )
 
     # 3. Update Record with Clock Out Details
-    now_time = datetime.now().strftime("%H:%M:%S")
+    now_time = get_current_time_str()
     cursor.execute("""
         UPDATE attendance_records
         SET clock_out_time = ?,
@@ -185,7 +189,7 @@ def get_daily_status(employee_id: int):
     """
     conn = get_db()
     cursor = conn.cursor()
-    today_str = datetime.now().strftime("%Y-%m-%d")
+    today_str = get_today_str()
 
     cursor.execute("""
         SELECT a.*, e.name, e.department, e.staff_id

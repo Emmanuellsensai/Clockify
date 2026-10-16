@@ -11,6 +11,7 @@ from fastapi.responses import StreamingResponse
 from datetime import datetime, timedelta
 from typing import Optional
 
+from backend.config import get_now, get_today_str
 from backend.database import get_db
 from backend.models import GeofenceModel, AttendanceModel
 from backend.schemas import GeofenceUpdate
@@ -66,7 +67,7 @@ def update_geofence(payload: GeofenceUpdate):
 
     conn = get_db()
     cursor = conn.cursor()
-    now = datetime.now().isoformat()
+    now = get_now().isoformat()
 
     cursor.execute("""
         UPDATE geofence_settings
@@ -287,8 +288,8 @@ def seed_demo_data():
     cursor.execute("SELECT id FROM employees LIMIT 6")
     employees = cursor.fetchall()
 
-    today_str = datetime.now().strftime("%Y-%m-%d")
-    yesterday_str = (datetime.now() - timedelta(days=1)).strftime("%Y-%m-%d")
+    today_str = get_today_str()
+    yesterday_str = (get_now() - timedelta(days=1)).strftime("%Y-%m-%d")
 
     cursor.execute("SELECT latitude, longitude FROM geofence_settings LIMIT 1")
     geo = cursor.fetchone()

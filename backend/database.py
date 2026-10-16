@@ -1,6 +1,6 @@
 import sqlite3
 from datetime import datetime
-from backend.config import DB_PATH, DEFAULT_WORKPLACE
+from backend.config import DB_PATH, DEFAULT_WORKPLACE, get_now
 
 _db_initialized = False
 
@@ -69,7 +69,7 @@ def init_db():
     # Seed Default Geofence if table is empty
     cursor.execute("SELECT COUNT(*) FROM geofence_settings")
     if cursor.fetchone()[0] == 0:
-        now = datetime.now().isoformat()
+        now = get_now().isoformat()
         cursor.execute("""
             INSERT INTO geofence_settings (name, latitude, longitude, radius_meters, work_start_time, updated_at)
             VALUES (?, ?, ?, ?, ?, ?)
@@ -86,7 +86,7 @@ def init_db():
     # Seed Sample Employees if table is empty
     cursor.execute("SELECT COUNT(*) FROM employees")
     if cursor.fetchone()[0] == 0:
-        now = datetime.now().isoformat()
+        now = get_now().isoformat()
         initial_employees = [
             ("EMP001", "Arogundade Habeebat", "habeebat@clockify.local", "Frontend Engineering", "1234", 0),
             ("EMP002", "Jonathan Jeremiah", "jeremiah@clockify.local", "Frontend & Mobile", "1234", 0),

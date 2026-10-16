@@ -15,6 +15,7 @@ import csv
 from datetime import datetime
 from typing import Any, Dict, Iterator, List, Optional, Tuple
 
+from backend.config import get_now, get_today_str
 from backend.database import get_db
 
 DATE_FORMAT = "%Y-%m-%d"
@@ -170,7 +171,7 @@ def generate_daily_report(date_str: Optional[str] = None) -> Dict[str, Any]:
     configured work start time, default 09:00).
     """
     if not date_str:
-        date_str = datetime.now().strftime(DATE_FORMAT)
+        date_str = get_today_str()
 
     conn = get_db()
     cursor = conn.cursor()
@@ -319,7 +320,7 @@ def export_attendance_json(**filters: Any) -> Dict[str, Any]:
         if value not in (None, False, "")
     }
     return {
-        "exported_at": datetime.now().isoformat(),
+        "exported_at": get_now().isoformat(),
         "count": len(records),
         "filters": applied_filters,
         "records": records

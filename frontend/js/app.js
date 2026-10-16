@@ -56,6 +56,22 @@ async function init() {
     // 1. Fetch Geofence Settings
     AppState.workplace = await ApiClient.getGeofence();
     
+    // Check if admin has saved a permanent geofence in localStorage
+    const savedGeoStr = localStorage.getItem("clockify_permanent_geofence");
+    if (savedGeoStr) {
+      try {
+        const savedGeo = JSON.parse(savedGeoStr);
+        const diff = Math.abs(AppState.workplace.latitude - savedGeo.latitude) > 0.00005 ||
+                     Math.abs(AppState.workplace.longitude - savedGeo.longitude) > 0.00005 ||
+                     parseFloat(AppState.workplace.radius_meters) !== parseFloat(savedGeo.radius_meters);
+        if (diff) {
+          // Keep backend synchronized with permanent perimeter
+          await ApiClient.updateGeofence(savedGeo);
+          AppState.workplace = savedGeo;
+        }
+      } catch (e) {}
+    }
+    
     // 2. Fetch Employees List
     AppState.employeesList = await ApiClient.getEmployees();
     
