@@ -41,3 +41,9 @@ class EmployeeCreate(BaseModel):
 class PinVerification(BaseModel):
     employee_id: int
     pin: str
+
+# Admin Authentication
+class AdminLoginRequest(BaseModel):
+    username: str = Field(..., description="Admin username, staff ID or email (e.g. techAlhaji)")
+    pin: str = Field(..., description="Security PIN / password (default 1234)")
+

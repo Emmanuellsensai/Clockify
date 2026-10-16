@@ -4,168 +4,149 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Clockify — Smart Geofenced Attendance</title>
-  <meta name="description" content="Clockify is a smart geofenced employee attendance system. Clock in and out with verified GPS proximity.">
-  <meta name="theme-color" content="#080c14">
-
-  <!-- Favicon -->
+  <meta name="description" content="Clockify GPS attendance portal — clock in and out with verified geofence proximity.">
+  <meta name="theme-color" content="#060b15">
   <link rel="icon" href="/static/assets/favicon.svg" type="image/svg+xml">
   <link rel="apple-touch-icon" href="/static/assets/images/logo.jpg">
-
-  <!-- Fonts & CSS -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="/static/css/style.css">
 </head>
 <body>
 
-  <!-- ===================== NAVBAR ===================== -->
+  <!-- NAVBAR -->
   <header class="navbar" role="banner">
-    <a class="brand" href="/" aria-label="Clockify Home">
-      <img class="brand-logo-img" src="/static/assets/images/logo.jpg" alt="Clockify logo" width="34" height="34">
-      <span class="brand-wordmark">Clock<span>ify</span></span>
-      <span class="brand-badge">GPS</span>
+    <a class="brand" href="/" aria-label="Clockify home">
+      <img class="brand-logo-img" src="/static/assets/images/logo.jpg" alt="Clockify" width="32" height="32">
+      <span class="brand-wordmark">Clock<em>ify</em></span>
+      <span class="brand-tag">GPS</span>
     </a>
-
-    <nav class="nav-actions" aria-label="Main navigation">
-      <a href="/admin" class="nav-link nav-link-primary" id="navAdminLink">
-        <svg class="nav-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></svg>
+    <nav class="nav-actions">
+      <a href="/admin" class="nav-link nav-link-accent" id="navAdminLink">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/>
+          <circle cx="12" cy="12" r="3"/>
+        </svg>
         Admin
       </a>
     </nav>
   </header>
 
-  <!-- ===================== MAIN EMPLOYEE PORTAL ===================== -->
+  <!-- MAIN PORTAL -->
   <main class="container" role="main">
 
-    <!-- Employee Profile Bar -->
-    <div class="employee-bar" id="employeeBarEl">
+    <!-- Employee Bar -->
+    <div class="employee-bar">
       <div class="employee-info">
-        <div class="avatar" id="employeeAvatar" aria-label="Employee initials">--</div>
+        <div class="avatar" id="employeeAvatar">--</div>
         <div class="employee-text">
           <h3 id="employeeName">Loading Profile…</h3>
           <p id="employeeDept">Department &bull; Staff ID</p>
         </div>
       </div>
-      <button class="btn-switch" id="btnSwitchEmployee" type="button" aria-haspopup="dialog" aria-controls="modalSwitch">
-        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M17 1l4 4-4 4"/><path d="M3 11V9a4 4 0 0 1 4-4h14"/><path d="M7 23l-4-4 4-4"/><path d="M21 13v2a4 4 0 0 1-4 4H3"/></svg>
+      <button class="btn-switch" id="btnSwitchEmployee" type="button" aria-haspopup="dialog">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M16 3l4 4-4 4"/><path d="M20 7H4"/><path d="M8 21l-4-4 4-4"/><path d="M4 17h16"/>
+        </svg>
         Switch Staff
       </button>
     </div>
 
-    <!-- Live Digital Clock -->
-    <section class="card clock-section" aria-label="Current time and date">
-      <div class="clock-label">Local Time</div>
+    <!-- Clock Hero -->
+    <section class="card card-glow clock-card" aria-label="Current time">
+      <div class="clock-eyebrow">Local Time</div>
       <div class="digital-clock" id="digitalClock" role="timer" aria-live="off">--:--:-- --</div>
-      <div class="date-display" id="dateDisplay">Loading date…</div>
+      <div class="date-display" id="dateDisplay">Loading…</div>
+      <div class="glow-line"></div>
     </section>
 
-    <!-- Geofence Radar -->
-    <section class="card radar-box" aria-label="GPS geofence status">
-      <div class="radar-header">
-        <div class="radar-title-group">
-          <div class="radar-icon">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#6366f1" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg>
-          </div>
-          <div>
-            <div class="radar-title">Geofence Radar</div>
-          </div>
-        </div>
-        <span class="status-badge badge-checking" id="statusBadge">
-          <span class="pulse-indicator" id="statusPulse"></span>
-          Locating GPS…
-        </span>
+    <!-- GPS Radar -->
+    <section class="card radar-card" aria-label="GPS geofence status">
+
+      <!-- Animated Radar Circle -->
+      <div class="radar-wrap" id="radarWrapEl" aria-hidden="true">
+        <div class="radar-bg"></div>
+        <div class="radar-ch"></div>
+        <div class="radar-spin"></div>
+        <div class="radar-origin"></div>
+        <div class="radar-user" id="radarDot"></div>
       </div>
 
-      <!-- Radar Visual + Info -->
-      <div style="display:flex; align-items:center; gap: 1.5rem; flex-wrap: wrap;">
-        <div class="radar-visual" aria-hidden="true">
-          <div class="radar-rings" id="radarRingsEl">
-            <div class="radar-ring"></div>
-            <div class="radar-ring"></div>
-            <div class="radar-ring"></div>
-            <div class="radar-center-dot" id="radarDot"></div>
-          </div>
+      <!-- Status Info -->
+      <div class="radar-info">
+        <div class="radar-eyebrow">Geofence Status</div>
+        <div class="status-pill pill-checking" id="statusBadge">
+          <span class="pill-dot" id="statusPulse"></span>
+          Acquiring GPS…
         </div>
-
-        <div class="radar-info" style="flex:1; min-width: 160px;">
-          <div class="distance-value" id="distanceValue">Calculating…</div>
-          <div class="distance-sub" id="distanceSub">Acquiring device satellite position…</div>
-        </div>
+        <div class="distance-fig" id="distanceValue">—</div>
+        <div class="distance-cap" id="distanceSub">Initialising satellite position…</div>
       </div>
     </section>
 
-    <!-- Primary Action Button -->
-    <section class="action-box" aria-label="Attendance action">
-      <button class="btn-primary-action" id="btnAction" type="button" disabled aria-live="polite">
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" id="actionBtnIcon"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
-        <span id="actionBtnText">Initializing…</span>
+    <!-- Action Button -->
+    <section class="action-wrap" aria-label="Clock action">
+      <button class="btn-action" id="btnAction" type="button" disabled>
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" id="actionBtnIcon">
+          <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
+        </svg>
+        <span id="actionBtnText">Initialising…</span>
       </button>
     </section>
 
-    <!-- Today's Shift Summary -->
-    <section class="shift-summary" aria-label="Today's shift times">
-      <div class="summary-card">
-        <span class="summary-icon">🟢</span>
-        <span class="summary-label">Arrival Time</span>
-        <span class="summary-time" id="todayClockIn">--:--</span>
+    <!-- Today Summary -->
+    <section class="shift-summary" aria-label="Today's shift">
+      <div class="sum-card">
+        <span class="sum-icon">🟢</span>
+        <span class="sum-label">Arrival Time</span>
+        <span class="sum-value" id="todayClockIn">--:--</span>
       </div>
-      <div class="summary-card">
-        <span class="summary-icon">🔴</span>
-        <span class="summary-label">Departure Time</span>
-        <span class="summary-time" id="todayClockOut">--:--</span>
+      <div class="sum-card">
+        <span class="sum-icon">🔴</span>
+        <span class="sum-label">Departure</span>
+        <span class="sum-value" id="todayClockOut">--:--</span>
       </div>
     </section>
 
-    <!-- Recent Attendance History -->
-    <section class="card history-section" aria-label="Attendance history">
-      <div class="section-header">
-        <h2 class="section-title">
-          <span class="section-title-icon">
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#6366f1" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3h18v18H3z"/><path d="M3 9h18M9 21V9"/></svg>
-          </span>
+    <!-- Attendance History -->
+    <section class="card history-card" aria-label="Attendance history">
+      <div class="history-head">
+        <h2 class="history-ttl">
+          <span class="history-ttl-ic">📋</span>
           Recent Activity
         </h2>
-        <span class="section-count" id="historyCount">0 records</span>
+        <span class="history-cnt" id="historyCount">—</span>
       </div>
-      <div class="history-list" id="historyList" role="list">
-        <!-- Rendered dynamically -->
-      </div>
+      <div class="history-list" id="historyList" role="list"></div>
     </section>
 
   </main>
 
-  <!-- ===================== EMPLOYEE SWITCHER MODAL ===================== -->
+  <!-- Employee Switcher Modal -->
   <div class="modal-overlay" id="modalSwitch" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
-    <div class="modal-content">
-      <div class="modal-header">
+    <div class="modal-box">
+      <div class="modal-hd">
         <h3 id="modalTitle">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#6366f1" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#818cf8" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
+            <circle cx="9" cy="7" r="4"/>
+            <path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/>
+          </svg>
           Select Staff Profile
         </h3>
-        <button class="modal-close" id="modalClose" type="button" aria-label="Close modal">&times;</button>
+        <button class="modal-x" id="modalClose" type="button" aria-label="Close">&times;</button>
       </div>
-
-      <div class="modal-search">
-        <input
-          type="search"
-          class="modal-search-input"
-          id="modalSearchInput"
-          placeholder="Search employees…"
-          aria-label="Search employees"
-          autocomplete="off"
-        >
+      <div class="modal-search-wrap">
+        <input type="search" class="modal-search" id="modalSearchInput" placeholder="Search employees…" autocomplete="off" aria-label="Search employees">
       </div>
-
-      <div class="employee-select-list" id="employeeSelectList" role="listbox" aria-label="Employee list">
-        <!-- Rendered dynamically -->
-      </div>
+      <div class="modal-list" id="employeeSelectList" role="listbox" aria-label="Employee list"></div>
     </div>
   </div>
 
-  <!-- ===================== TOAST CONTAINER ===================== -->
+  <!-- Toast -->
   <div class="toast-container" id="toastContainer" role="status" aria-live="polite" aria-atomic="false"></div>
 
-  <!-- ===================== SCRIPTS ===================== -->
   <script src="/static/js/api.js"></script>
   <script src="/static/js/geo.js"></script>
   <script src="/static/js/app.js"></script>

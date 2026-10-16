@@ -20,9 +20,16 @@ def init_db():
             email TEXT UNIQUE NOT NULL,
             department TEXT NOT NULL,
             pin TEXT DEFAULT '1234',
+            is_admin INTEGER DEFAULT 0,
             created_at TEXT NOT NULL
         )
     """)
+
+    # Ensure is_admin column exists for existing databases
+    cursor.execute("PRAGMA table_info(employees)")
+    columns = [col[1] for col in cursor.fetchall()]
+    if "is_admin" not in columns:
+        cursor.execute("ALTER TABLE employees ADD COLUMN is_admin INTEGER DEFAULT 0")
 
     # 2. Workplace Geofence Settings Table
     cursor.execute("""
@@ -82,20 +89,31 @@ def init_db():
     if cursor.fetchone()[0] == 0:
         now = datetime.now().isoformat()
         initial_employees = [
-            ("EMP001", "Arogundade Habeebat", "habeebat@clockify.local", "Frontend Engineering", "1234"),
-            ("EMP002", "Jonathan Jeremiah", "jeremiah@clockify.local", "Frontend & Mobile", "1234"),
-            ("EMP003", "Usang Emmanuel", "usang@clockify.local", "Backend & Database", "1234"),
-            ("EMP004", "Babatunde Daniel", "daniel@clockify.local", "Backend & Geolocation", "1234"),
-            ("EMP005", "Ojomo Abiola", "abiola@clockify.local", "Frontend & Integration", "1234"),
-            ("EMP006", "Talabi Josiah", "josiah@clockify.local", "Backend & Security", "1234"),
-            ("EMP007", "Oluwasegun Adejumo", "adejumo@clockify.local", "Analytics & Admin", "1234"),
-            ("EMP008", "Olajide Peter", "peter@clockify.local", "Frontend & Admin UI", "1234"),
-            ("EMP009", "Lead Tech", "lead@clockify.local", "Engineering Leadership", "1234"),
+            ("EMP001", "Arogundade Habeebat", "habeebat@clockify.local", "Frontend Engineering", "1234", 0),
+            ("EMP002", "Jonathan Jeremiah", "jeremiah@clockify.local", "Frontend & Mobile", "1234", 0),
+            ("EMP003", "Usang Emmanuel", "usang@clockify.local", "Backend & Database", "1234", 0),
+            ("EMP004", "Babatunde Daniel", "daniel@clockify.local", "Backend & Geolocation", "1234", 0),
+            ("EMP005", "Ojomo Abiola", "abiola@clockify.local", "Frontend & Integration", "1234", 0),
+            ("EMP006", "Talabi Josiah", "josiah@clockify.local", "Backend & Security", "1234", 0),
+            ("EMP007", "Oluwasegun Adejumo", "adejumo@clockify.local", "Analytics & Admin", "1234", 0),
+            ("EMP008", "Olajide Peter", "peter@clockify.local", "Frontend & Admin UI", "1234", 0),
+            ("EMP009", "techAlhaji", "techalhaji@clockify.dev", "Lead Tech / Engineering Leadership", "1234", 1),
         ]
         cursor.executemany("""
-            INSERT INTO employees (staff_id, name, email, department, pin, created_at)
-            VALUES (?, ?, ?, ?, ?, ?)
-        """, [(emp[0], emp[1], emp[2], emp[3], emp[4], now) for emp in initial_employees])
+            INSERT INTO employees (staff_id, name, email, department, pin, is_admin, created_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
+        """, [(emp[0], emp[1], emp[2], emp[3], emp[4], emp[5], now) for emp in initial_employees])
+        conn.commit()
+    else:
+        # Ensure techAlhaji is updated as Lead Tech in existing database
+        cursor.execute("""
+            UPDATE employees 
+            SET name = 'techAlhaji', 
+                email = 'techalhaji@clockify.dev', 
+                department = 'Lead Tech / Engineering Leadership', 
+                is_admin = 1 
+            WHERE staff_id = 'EMP009' OR name = 'Lead Tech' OR id = 9
+        """)
         conn.commit()
 
     conn.close()

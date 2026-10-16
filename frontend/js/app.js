@@ -15,37 +15,36 @@ const AppState = {
 
 // DOM Elements
 const elements = {
-  digitalClock: document.getElementById("digitalClock"),
-  dateDisplay: document.getElementById("dateDisplay"),
-  employeeName: document.getElementById("employeeName"),
-  employeeDept: document.getElementById("employeeDept"),
-  employeeAvatar: document.getElementById("employeeAvatar"),
-  btnSwitchEmployee: document.getElementById("btnSwitchEmployee"),
-  modalSwitch: document.getElementById("modalSwitch"),
-  modalClose: document.getElementById("modalClose"),
-  modalSearchInput: document.getElementById("modalSearchInput"),
-  employeeSelectList: document.getElementById("employeeSelectList"),
+  digitalClock:        document.getElementById('digitalClock'),
+  dateDisplay:         document.getElementById('dateDisplay'),
+  employeeName:        document.getElementById('employeeName'),
+  employeeDept:        document.getElementById('employeeDept'),
+  employeeAvatar:      document.getElementById('employeeAvatar'),
+  btnSwitchEmployee:   document.getElementById('btnSwitchEmployee'),
+  modalSwitch:         document.getElementById('modalSwitch'),
+  modalClose:          document.getElementById('modalClose'),
+  modalSearchInput:    document.getElementById('modalSearchInput'),
+  employeeSelectList:  document.getElementById('employeeSelectList'),
 
-  // Radar / Status
-  statusPulse: document.getElementById("statusPulse"),
-  statusBadge: document.getElementById("statusBadge"),
-  distanceValue: document.getElementById("distanceValue"),
-  distanceSub: document.getElementById("distanceSub"),
-  radarRingsEl: document.getElementById("radarRingsEl"),
-  radarDot: document.getElementById("radarDot"),
+  // Radar / Status — new v3 IDs
+  statusBadge:   document.getElementById('statusBadge'),
+  distanceValue: document.getElementById('distanceValue'),
+  distanceSub:   document.getElementById('distanceSub'),
+  radarWrapEl:   document.getElementById('radarWrapEl'),
+  radarDot:      document.getElementById('radarDot'),
 
   // Action Button
-  btnAction: document.getElementById("btnAction"),
-  actionBtnText: document.getElementById("actionBtnText"),
+  btnAction:      document.getElementById('btnAction'),
+  actionBtnText:  document.getElementById('actionBtnText'),
 
   // Today Summary
-  todayClockIn: document.getElementById("todayClockIn"),
-  todayClockOut: document.getElementById("todayClockOut"),
+  todayClockIn:  document.getElementById('todayClockIn'),
+  todayClockOut: document.getElementById('todayClockOut'),
 
   // History
-  historyList: document.getElementById("historyList"),
-  historyCount: document.getElementById("historyCount"),
-  toastContainer: document.getElementById("toastContainer")
+  historyList:   document.getElementById('historyList'),
+  historyCount:  document.getElementById('historyCount'),
+  toastContainer: document.getElementById('toastContainer')
 };
 
 // Initialize Application
@@ -163,56 +162,57 @@ function updateTodaySummary() {
 // Render Attendance History
 function renderHistory(records) {
   if (elements.historyCount) {
-    elements.historyCount.textContent = records && records.length > 0 ? `${records.length} record${records.length !== 1 ? 's' : ''}` : '0 records';
+    elements.historyCount.textContent = records && records.length > 0
+      ? `${records.length} record${records.length !== 1 ? 's' : ''}`
+      : '0 records';
   }
 
   if (!records || records.length === 0) {
     elements.historyList.innerHTML = `
-      <div class="empty-state">
-        <div class="empty-state-icon">📅</div>
-        <div class="empty-state-text">No recent attendance records found.</div>
+      <div class="empty">
+        <div class="empty-ic">📅</div>
+        <div class="empty-msg">No recent attendance records</div>
       </div>`;
     return;
   }
 
   elements.historyList.innerHTML = records.map(r => {
-    const dateObj = r.date ? new Date(r.date) : null;
-    const dayNum = dateObj ? dateObj.getDate() : '--';
-    const dayMon = dateObj ? dateObj.toLocaleDateString([], { month: 'short' }).toUpperCase() : '---';
+    const dateObj = r.date ? new Date(r.date + 'T00:00:00') : null;
+    const dayNum  = dateObj ? dateObj.getDate() : '--';
+    const dayMon  = dateObj ? dateObj.toLocaleDateString([], { month: 'short' }).toUpperCase() : '---';
     return `
-    <div class="history-item" role="listitem">
-      <div class="history-item-left">
-        <div class="history-day-icon" aria-hidden="true">
-          <span class="history-day-num">${dayNum}</span>
-          <span class="history-day-mon">${dayMon}</span>
+    <div class="h-item" role="listitem">
+      <div class="h-left">
+        <div class="h-date-box" aria-hidden="true">
+          <span class="h-day">${dayNum}</span>
+          <span class="h-mon">${dayMon}</span>
         </div>
-        <div class="history-content">
-          <div class="history-date">${r.date}</div>
-          <div class="history-times">In: ${r.clock_in_time || 'N/A'} &nbsp;·&nbsp; Out: ${r.clock_out_time || 'In Progress'}</div>
+        <div class="h-info">
+          <div class="h-date-str">${r.date}</div>
+          <div class="h-times">In: ${r.clock_in_time || 'N/A'}&nbsp;·&nbsp;Out: ${r.clock_out_time || 'In Progress'}</div>
         </div>
       </div>
-      <span class="history-badge ${r.is_late ? 'tag-late' : 'tag-ontime'}">
+      <span class="h-badge ${r.is_late ? 'h-late' : 'h-ontime'}">
         ${r.is_late ? '⏰ Late' : '✓ On Time'}
       </span>
     </div>`;
-  }).join("");
+  }).join('');
 }
 
 // Query Live Location & Update Radar
 async function queryLiveLocation() {
-  elements.statusBadge.className = "status-badge badge-checking";
-  elements.statusBadge.textContent = "Locating...";
-  elements.statusPulse.className = "pulse-indicator";
+  elements.statusBadge.className = 'status-pill pill-checking';
+  elements.statusBadge.innerHTML = '<span class="pill-dot"></span> Locating GPS…';
 
   try {
     const pos = await GeoService.getCurrentPosition();
     AppState.currentLocation = pos;
     updateDistanceRadar(pos.latitude, pos.longitude, pos.accuracy);
   } catch (err) {
-    elements.statusBadge.className = "status-badge badge-outside";
-    elements.statusBadge.textContent = "GPS Offline";
-    elements.distanceValue.textContent = "GPS Error";
-    elements.distanceSub.textContent = err.message;
+    elements.statusBadge.className = 'status-pill pill-outside';
+    elements.statusBadge.innerHTML = '<span class="pill-dot"></span> GPS Offline';
+    elements.distanceValue.textContent = 'GPS Error';
+    elements.distanceSub.textContent   = err.message;
   }
 }
 
@@ -220,28 +220,23 @@ async function queryLiveLocation() {
 function updateDistanceRadar(lat, lon, accuracy) {
   if (!AppState.workplace) return;
 
-  const dist = GeoService.calculateDistance(
-    lat, lon,
-    AppState.workplace.latitude,
-    AppState.workplace.longitude
-  );
-
-  const radius = AppState.workplace.radius_meters;
+  const dist     = GeoService.calculateDistance(lat, lon, AppState.workplace.latitude, AppState.workplace.longitude);
+  const radius   = AppState.workplace.radius_meters;
   const isInside = dist <= radius;
 
   elements.distanceValue.textContent = `${dist}m away`;
-  elements.distanceSub.textContent = `${AppState.workplace.name} · Within ${radius}m required · GPS ±${accuracy}m`;
+  elements.distanceSub.textContent   = `${AppState.workplace.name} · Radius ${radius}m · GPS ±${accuracy}m`;
 
   if (isInside) {
-    elements.statusBadge.className = "status-badge badge-inside";
-    elements.statusBadge.innerHTML = '<span class="pulse-indicator inside" id="statusPulse"></span> Inside Workplace';
-    if (elements.radarRingsEl) elements.radarRingsEl.className = "radar-rings status-inside";
-    if (elements.radarDot) elements.radarDot.className = "radar-center-dot status-inside";
+    elements.statusBadge.className = 'status-pill pill-inside';
+    elements.statusBadge.innerHTML = '<span class="pill-dot"></span> Inside Workplace';
+    if (elements.radarWrapEl) elements.radarWrapEl.className = 'radar-wrap is-inside';
+    if (elements.radarDot)    elements.radarDot.className    = 'radar-user dot-inside';
   } else {
-    elements.statusBadge.className = "status-badge badge-outside";
-    elements.statusBadge.innerHTML = '<span class="pulse-indicator outside" id="statusPulse"></span> Outside Perimeter';
-    if (elements.radarRingsEl) elements.radarRingsEl.className = "radar-rings status-outside";
-    if (elements.radarDot) elements.radarDot.className = "radar-center-dot status-outside";
+    elements.statusBadge.className = 'status-pill pill-outside';
+    elements.statusBadge.innerHTML = '<span class="pill-dot"></span> Outside Perimeter';
+    if (elements.radarWrapEl) elements.radarWrapEl.className = 'radar-wrap is-outside';
+    if (elements.radarDot)    elements.radarDot.className    = 'radar-user dot-outside';
   }
 }
 
@@ -341,25 +336,26 @@ function renderEmployeeModalList(filter = '') {
     : AppState.employeesList;
 
   if (filtered.length === 0) {
-    elements.employeeSelectList.innerHTML = `<div style="text-align:center; color:var(--text-tertiary); padding:1.5rem 1rem; font-size:0.85rem;">No employees match your search.</div>`;
+    elements.employeeSelectList.innerHTML =
+      `<div style="text-align:center;color:var(--t3);padding:1.5rem 1rem;font-size:.84rem;">No employees match.</div>`;
     return;
   }
 
   elements.employeeSelectList.innerHTML = filtered.map(emp => {
     const isActive = AppState.currentEmployee && AppState.currentEmployee.id === emp.id;
     return `
-    <div class="employee-option-card ${isActive ? 'active' : ''}" data-id="${emp.id}" role="option" aria-selected="${isActive}">
-      <div class="emp-opt-avatar">${getInitials(emp.name)}</div>
-      <div class="emp-opt-info">
-        <div class="emp-opt-name">${emp.name}</div>
-        <div class="emp-opt-meta">${emp.department} &bull; ${emp.staff_id}</div>
+    <div class="emp-opt${isActive ? ' active' : ''}" data-id="${emp.id}" role="option" aria-selected="${isActive}" tabindex="0">
+      <div class="emp-av">${getInitials(emp.name)}</div>
+      <div>
+        <div class="emp-name">${emp.name}</div>
+        <div class="emp-meta">${emp.department} &bull; ${emp.staff_id}</div>
       </div>
-      <span class="emp-opt-select">${isActive ? '✓' : '→'}</span>
+      <span class="emp-arrow">${isActive ? '✓' : '→'}</span>
     </div>`;
   }).join('');
 
-  elements.employeeSelectList.querySelectorAll('.employee-option-card').forEach(card => {
-    card.addEventListener('click', async () => {
+  elements.employeeSelectList.querySelectorAll('.emp-opt').forEach(card => {
+    const activate = async () => {
       const id = parseInt(card.getAttribute('data-id'));
       AppState.currentEmployee = AppState.employeesList.find(e => e.id === id);
       localStorage.setItem('clockify_active_emp_id', id);
@@ -367,7 +363,9 @@ function renderEmployeeModalList(filter = '') {
       elements.modalSwitch.classList.remove('open');
       await refreshShiftData();
       showToast(`Switched to ${AppState.currentEmployee.name}`, 'warning');
-    });
+    };
+    card.addEventListener('click', activate);
+    card.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') activate(); });
   });
 }
 
@@ -378,17 +376,15 @@ function showToast(message, type = 'info') {
   const toast = document.createElement('div');
   toast.className = `toast ${type}`;
   toast.innerHTML = `
-    <span class="toast-icon">${TOAST_ICONS[type] || 'ℹ'}</span>
+    <div class="t-icon">${TOAST_ICONS[type] || 'ℹ'}</div>
     <span>${message}</span>
   `;
-
   elements.toastContainer.appendChild(toast);
-
   setTimeout(() => {
     toast.style.opacity = '0';
     toast.style.transform = 'translateX(110%)';
-    toast.style.transition = 'all 0.35s cubic-bezier(0.4, 0, 1, 1)';
-    setTimeout(() => toast.remove(), 350);
+    toast.style.transition = 'all .35s cubic-bezier(.4,0,1,1)';
+    setTimeout(() => toast.remove(), 360);
   }, 4500);
 }
 

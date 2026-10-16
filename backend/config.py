@@ -12,13 +12,21 @@ else:
 
 FRONTEND_DIR = os.path.join(BASE_DIR, "frontend")
 
-# Default Workplace Geofence (Can be updated dynamically via Admin API)
+# Default Workplace Geofence (Configured for demo)
 DEFAULT_WORKPLACE = {
-    "name": "Headquarters - Main Campus",
-    "latitude": 6.5244,       # Default sample coordinates (e.g., Lagos, Nigeria)
-    "longitude": 3.3792,
+    "name": "14, Pier Place, Montgomery Road, Yaba",
+    "latitude": 6.509309,     # 14 Montgomery Road, Yaba, Lagos, Nigeria
+    "longitude": 3.374993,
     "radius_meters": 150.0,   # Allowed perimeter in meters
     "work_start_time": "09:00" # After 09:00 is marked Late
+}
+
+# Admin Security & Access Control
+ADMIN_CONFIG = {
+    "lead_tech_name": "techAlhaji",
+    "lead_tech_email": "techalhaji@clockify.dev",
+    "default_admin_pin": "1234",
+    "admin_secret_token": "clockify_admin_secure_techAlhaji_token_2026"
 }
 
 # Geolocation Accuracy Threshold

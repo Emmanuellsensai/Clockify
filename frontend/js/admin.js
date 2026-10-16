@@ -91,62 +91,48 @@ async function loadAttendanceRecords(date) {
 
 // Render Table Rows
 function renderAttendanceTable(records) {
-  if (!records || records.length === 0) {
-    adminElements.attendanceTableBody.innerHTML = `
-      <tr>
-        <td colspan="7">
-          <div class="table-empty">
-            <div class="table-empty-icon">📋</div>
-            <div class="table-empty-text">No records found</div>
-            <div class="table-empty-sub">Try adjusting the filters or date range.</div>
-          </div>
-        </td>
-      </tr>
-    `;
-    return;
-  }
-
-  function getInitials(name) {
+  function initials(name) {
     return (name || '?').split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase();
   }
 
-  adminElements.attendanceTableBody.innerHTML = records.map(r => {
-    const empName = r.employee_name || 'Staff #' + r.employee_id;
-    const dept = r.department || '';
-    const isActive = r.status === 'CLOCKED_IN';
-    const clockOutCell = r.clock_out_time
-      ? `<span class="td-time">${r.clock_out_time}</span>`
-      : `<span class="td-time td-time-na">—</span>`;
-    const distNote = r.clock_in_distance != null ? `<div style="font-size:0.72rem; color:var(--text-tertiary); margin-top:2px; font-family:var(--font-mono);">GPS ${r.clock_in_distance}m</div>` : '';
+  if (!records || records.length === 0) {
+    adminElements.attendanceTableBody.innerHTML = `
+      <tr><td colspan="7">
+        <div class="tbl-empty">
+          <div class="tbl-empty-ic">📋</div>
+          <div class="tbl-empty-msg">No records found</div>
+          <div class="tbl-empty-sub">Try changing the date or search filter.</div>
+        </div>
+      </td></tr>`;
+    return;
+  }
 
-    return `
-    <tr>
+  adminElements.attendanceTableBody.innerHTML = records.map(r => {
+    const name    = r.employee_name || 'Staff #' + r.employee_id;
+    const dept    = r.department || '';
+    const active  = r.status === 'CLOCKED_IN';
+    const outCell = r.clock_out_time
+      ? `<span class="td-time">${r.clock_out_time}</span>`
+      : `<span class="td-time td-na">—</span>`;
+    const gps = r.clock_in_distance != null
+      ? `<div style="font-size:.7rem;color:var(--t3);margin-top:2px;font-family:var(--mono);">GPS ${r.clock_in_distance}m</div>` : '';
+
+    return `<tr>
       <td>
-        <div class="td-employee">
-          <div class="td-avatar">${getInitials(empName)}</div>
+        <div class="td-emp">
+          <div class="td-av">${initials(name)}</div>
           <div>
-            <div class="td-emp-name">${empName}</div>
-            ${dept ? `<div class="td-emp-dept">${dept}</div>` : ''}
+            <div class="td-name">${name}</div>
+            ${dept ? `<div class="td-dept">${dept}</div>` : ''}
           </div>
         </div>
       </td>
-      <td style="font-size:0.85rem; color:var(--text-secondary); white-space:nowrap;">${r.date}</td>
-      <td>
-        <span class="td-time">${r.clock_in_time || '<span class="td-time-na">—</span>'}</span>
-        ${distNote}
-      </td>
-      <td>${clockOutCell}</td>
-      <td>
-        <span class="status-chip ${isActive ? 'chip-in' : 'chip-out'}">
-          ${isActive ? '● Active' : '◎ Done'}
-        </span>
-      </td>
-      <td>
-        <span class="status-chip ${r.is_late ? 'chip-late' : 'chip-ontime'}">
-          ${r.is_late ? '⏰ Late' : '✓ On Time'}
-        </span>
-      </td>
-      <td style="font-size:0.8rem; color:var(--text-tertiary);">${r.notes || 'Verified'}</td>
+      <td style="white-space:nowrap;color:var(--t2);font-size:.84rem;">${r.date}</td>
+      <td><span class="td-time">${r.clock_in_time || '<span class="td-na">—</span>'}</span>${gps}</td>
+      <td>${outCell}</td>
+      <td><span class="chip ${active ? 'chip-in' : 'chip-done'}">${active ? '● Active' : '◎ Done'}</span></td>
+      <td><span class="chip ${r.is_late ? 'chip-late' : 'chip-ontime'}">${r.is_late ? '⏰ Late' : '✓ On Time'}</span></td>
+      <td style="font-size:.78rem;color:var(--t3);">${r.notes || 'Verified'}</td>
     </tr>`;
   }).join('');
 }
@@ -223,23 +209,17 @@ function setupAdminListeners() {
 }
 
 // Toast
-const ADMIN_TOAST_ICONS = { success: '✓', error: '✕', warning: '⚠', info: 'ℹ' };
-
-function showToast(message, type = "info") {
-  const toast = document.createElement("div");
+const ADMIN_ICONS = { success: '✓', error: '✕', warning: '⚠', info: 'ℹ' };
+function showToast(message, type = 'info') {
+  const toast = document.createElement('div');
   toast.className = `toast ${type}`;
-  toast.innerHTML = `
-    <span class="toast-icon">${ADMIN_TOAST_ICONS[type] || 'ℹ'}</span>
-    <span>${message}</span>
-  `;
-
+  toast.innerHTML = `<div class="t-icon">${ADMIN_ICONS[type] || 'ℹ'}</div><span>${message}</span>`;
   adminElements.toastContainer.appendChild(toast);
-
   setTimeout(() => {
-    toast.style.opacity = "0";
-    toast.style.transform = "translateX(110%)";
-    toast.style.transition = "all 0.35s cubic-bezier(0.4, 0, 1, 1)";
-    setTimeout(() => toast.remove(), 350);
+    toast.style.opacity = '0';
+    toast.style.transform = 'translateX(110%)';
+    toast.style.transition = 'all .35s cubic-bezier(.4,0,1,1)';
+    setTimeout(() => toast.remove(), 360);
   }, 4500);
 }
 

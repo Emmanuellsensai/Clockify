@@ -11,6 +11,7 @@ class EmployeeModel:
             "name": row["name"],
             "email": row["email"],
             "department": row["department"],
+            "is_admin": bool(row["is_admin"]) if "is_admin" in row.keys() else False,
             "created_at": row["created_at"]
         }
 
