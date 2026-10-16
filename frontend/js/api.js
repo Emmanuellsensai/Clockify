@@ -146,3 +146,10 @@ const ApiClient = {
     return this.post("/api/admin/seed-demo-data", {});
   }
 };
+
+if (typeof window !== "undefined") {
+  window.ApiClient = ApiClient;
+}
+if (typeof module !== "undefined" && module.exports) {
+  module.exports = ApiClient;
+}
