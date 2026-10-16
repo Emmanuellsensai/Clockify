@@ -60,9 +60,10 @@ const adminElements = {
 };
 
 let allRecords = [];
-// Retrieve persistent filter view preference from localStorage (defaults to today's records)
+// Retrieve persistent filter view preference from localStorage (defaults to all records)
 const savedFilterMode = localStorage.getItem(STORAGE_KEY_FILTER_MODE);
-let showAllDates = (savedFilterMode === "all");
+// By default, show all records so no database records are ever hidden!
+let showAllDates = (savedFilterMode !== "today");
 let autoRefreshTimer = null;
 const AUTO_REFRESH_INTERVAL_MS = 6000;
 
@@ -171,7 +172,7 @@ function showAdminDashboardUI() {
 
 // Fetch Metrics, Geofence, and Records
 async function refreshAllDashboardData(silent = false) {
-  const date = showAllDates ? null : adminElements.filterDate.value;
+  const date = showAllDates ? null : "today";
   try {
     await Promise.all([
       loadMetrics(date),
@@ -510,6 +511,35 @@ function setupAdminListeners() {
     });
   }
 
+  // Mobile Hamburger Toggle
+  const navHamburger = document.getElementById("navHamburger");
+  const navActions = document.getElementById("navActions");
+  if (navHamburger && navActions) {
+    navHamburger.addEventListener("click", () => {
+      const isOpen = navActions.classList.toggle("is-open");
+      navHamburger.classList.toggle("is-active", isOpen);
+      navHamburger.setAttribute("aria-expanded", isOpen ? "true" : "false");
+    });
+
+    // Close mobile menu when clicking outside
+    document.addEventListener("click", (e) => {
+      if (!navHamburger.contains(e.target) && !navActions.contains(e.target)) {
+        navActions.classList.remove("is-open");
+        navHamburger.classList.remove("is-active");
+        navHamburger.setAttribute("aria-expanded", "false");
+      }
+    });
+
+    // Close when tapping an action link
+    navActions.querySelectorAll("a, button").forEach(item => {
+      item.addEventListener("click", () => {
+        navActions.classList.remove("is-open");
+        navHamburger.classList.remove("is-active");
+        navHamburger.setAttribute("aria-expanded", "false");
+      });
+    });
+  }
+
   // Toggle All Dates vs Today Only
   if (adminElements.btnToggleAllDates) {
     adminElements.btnToggleAllDates.addEventListener("click", async () => {
@@ -558,7 +588,7 @@ function setupAdminListeners() {
   // Export CSV with attached token for authenticated download
   if (adminElements.btnExportCsv) {
     adminElements.btnExportCsv.addEventListener("click", () => {
-      const date = showAllDates ? null : adminElements.filterDate.value;
+      const date = showAllDates ? null : "today";
       const token = getStoredAdminToken();
       const params = new URLSearchParams();
       if (token) params.append("token", token);

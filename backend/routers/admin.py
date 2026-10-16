@@ -317,13 +317,13 @@ def seed_demo_data():
         ("09:08:44", lat, lon, 22.1, "16:55:12", lat, lon, 25.4, "CLOCKED_OUT", 1, "Late arrival (Verified)"),
         ("08:40:05", lat + 0.0002, lon, 19.5, None, None, None, None, "CLOCKED_IN", 0, "Active shift"),
         ("08:58:30", lat, lon - 0.0001, 14.8, None, None, None, None, "CLOCKED_IN", 0, "On time"),
+        ("08:31:00", lat, lon, 9.4, "17:05:00", lat, lon, 12.0, "CLOCKED_OUT", 0, "Completed shift"),
+        ("09:02:15", lat + 0.0001, lon, 16.2, None, None, None, None, "CLOCKED_IN", 1, "Late arrival (Office GPS)"),
     ]
 
     for i, emp in enumerate(employees):
         emp_id = emp["id"]
         cfg = sample_configs[i % len(sample_configs)]
-        # alternate between today and yesterday for diverse testing
-        record_date = today_str if i % 2 == 0 or i < 4 else yesterday_str
         cursor.execute("""
             INSERT INTO attendance_records (
                 employee_id, date, clock_in_time, clock_in_lat, clock_in_lon,
@@ -331,11 +331,11 @@ def seed_demo_data():
                 clock_out_distance, status, is_late, notes
             ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         """, (
-            emp_id, record_date, cfg[0], cfg[1], cfg[2],
+            emp_id, today_str, cfg[0], cfg[1], cfg[2],
             cfg[3], cfg[4], cfg[5], cfg[6], cfg[7], cfg[8], cfg[9], cfg[10]
         ))
 
     conn.commit()
     conn.close()
 
-    return {"status": "success", "message": f"Sample attendance records seeded across {len(employees)} employees!"}
+    return {"status": "success", "message": f"Sample attendance records seeded across all {len(employees)} employees for today!"}

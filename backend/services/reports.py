@@ -36,11 +36,14 @@ def validate_date(value: Optional[str], field_name: str = "date") -> Optional[st
     """Validate that ``value`` is a YYYY-MM-DD string. Returns the value or None."""
     if value is None or value == "":
         return None
+    val_clean = str(value).strip().lower()
+    if val_clean in ("today", "current"):
+        return get_today_str()
     try:
-        datetime.strptime(value, DATE_FORMAT)
+        datetime.strptime(str(value).strip(), DATE_FORMAT)
     except ValueError:
         raise ValueError(f"Invalid {field_name} '{value}'. Expected format: YYYY-MM-DD")
-    return value
+    return str(value).strip()
 
 
 def validate_date_range(
@@ -89,8 +92,9 @@ def build_attendance_query(
     params: List[Any] = []
 
     if date:
+        date_val = get_today_str() if str(date).strip().lower() in ("today", "current") else str(date).strip()
         conditions.append("a.date = ?")
-        params.append(date)
+        params.append(date_val)
 
     if start_date:
         conditions.append("a.date >= ?")
@@ -170,8 +174,10 @@ def generate_daily_report(date_str: Optional[str] = None) -> Dict[str, Any]:
     Late arrivals are records stamped late at clock-in (arrival after the
     configured work start time, default 09:00).
     """
-    if not date_str:
+    if not date_str or str(date_str).strip().lower() in ("today", "current"):
         date_str = get_today_str()
+    else:
+        date_str = str(date_str).strip()
 
     conn = get_db()
     cursor = conn.cursor()
