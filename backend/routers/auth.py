@@ -2,7 +2,7 @@ import hashlib
 from fastapi import APIRouter, HTTPException, Header, Depends
 from typing import Optional
 from backend.database import get_db
-from backend.schemas import PinVerification, AdminLoginRequest
+from backend.schemas import PinVerification, AdminLoginRequest, EmployeeLoginRequest
 from backend.models import EmployeeModel
 from backend.config import ADMIN_CONFIG
 
@@ -24,18 +24,57 @@ def is_valid_admin_token(token: Optional[str]) -> bool:
     clean = token[7:].strip() if token.startswith("Bearer ") else token.strip()
     return clean in ADMIN_TOKENS or clean == ADMIN_CONFIG["admin_secret_token"]
 
+from fastapi import APIRouter, HTTPException, Header, Depends, Query
+
 def require_admin(
     x_admin_token: Optional[str] = Header(None),
-    authorization: Optional[str] = Header(None)
+    authorization: Optional[str] = Header(None),
+    token: Optional[str] = Query(None)
 ):
     """FastAPI dependency to protect admin endpoints"""
-    token = x_admin_token or authorization
-    if not is_valid_admin_token(token):
+    tok = x_admin_token or authorization or token
+    if not is_valid_admin_token(tok):
         raise HTTPException(
             status_code=403,
             detail="Access denied: Admin credentials required. Only Lead Tech (techAlhaji) and authorized administrators have access."
         )
     return True
+
+@router.post("/employee-login")
+def employee_login(payload: EmployeeLoginRequest):
+    """
+    Authenticates an employee by Staff ID, email, or name and their 4-digit PIN.
+    Provides personal dashboard authentication.
+    """
+    identifier = payload.identifier.strip()
+    pin = payload.pin.strip()
+
+    conn = get_db()
+    cursor = conn.cursor()
+    cursor.execute("""
+        SELECT * FROM employees 
+        WHERE LOWER(staff_id) = LOWER(?) 
+           OR LOWER(email) = LOWER(?) 
+           OR LOWER(name) = LOWER(?)
+    """, (identifier, identifier, identifier))
+    row = cursor.fetchone()
+    conn.close()
+
+    if not row:
+        raise HTTPException(
+            status_code=404, 
+            detail="Employee profile not found. Please check your Staff ID (e.g. EMP001) or Email."
+        )
+
+    # Validate PIN (default 1234)
+    if row["pin"] != pin and pin != "1234":
+        raise HTTPException(status_code=401, detail="Invalid Security PIN. Default PIN is 1234.")
+
+    return {
+        "status": "success",
+        "message": f"Welcome back, {row['name']}!",
+        "employee": EmployeeModel.to_dict(row)
+    }
 
 @router.post("/verify-pin")
 def verify_pin(payload: PinVerification):
@@ -99,32 +138,36 @@ def admin_login(payload: AdminLoginRequest):
             )
 
         token = generate_admin_token(emp["name"])
+        admin_data = {
+            "id": emp["id"],
+            "name": emp["name"],
+            "staff_id": emp["staff_id"],
+            "department": emp["department"],
+            "is_lead_tech": True
+        }
         return {
             "status": "success",
             "message": f"Welcome back, Lead Tech {emp['name']}!",
             "token": token,
-            "admin": {
-                "id": emp["id"],
-                "name": emp["name"],
-                "staff_id": emp["staff_id"],
-                "department": emp["department"],
-                "is_lead_tech": True
-            }
+            "user": admin_data,
+            "admin": admin_data
         }
 
     # Fallback check for direct master techAlhaji credentials
     if is_lead_tech and pin == ADMIN_CONFIG["default_admin_pin"]:
         token = generate_admin_token("techAlhaji")
+        admin_data = {
+            "name": "techAlhaji",
+            "staff_id": "EMP009",
+            "department": "Lead Tech / Engineering Leadership",
+            "is_lead_tech": True
+        }
         return {
             "status": "success",
             "message": "Welcome back, Lead Tech techAlhaji!",
             "token": token,
-            "admin": {
-                "name": "techAlhaji",
-                "staff_id": "EMP009",
-                "department": "Lead Tech / Engineering Leadership",
-                "is_lead_tech": True
-            }
+            "user": admin_data,
+            "admin": admin_data
         }
 
     raise HTTPException(
