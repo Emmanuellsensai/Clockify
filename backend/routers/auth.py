@@ -12,7 +12,9 @@ router = APIRouter(prefix="/api/auth", tags=["Auth"])
 ADMIN_TOKENS = set([ADMIN_CONFIG["admin_secret_token"]])
 
 def generate_admin_token(username: str) -> str:
-    token = f"clockify_adm_{hashlib.sha256(f'{username}_{ADMIN_CONFIG[\"admin_secret_token\"]}'.encode()).hexdigest()[:32]}"
+    secret = ADMIN_CONFIG["admin_secret_token"]
+    raw = f"{username}_{secret}".encode()
+    token = f"clockify_adm_{hashlib.sha256(raw).hexdigest()[:32]}"
     ADMIN_TOKENS.add(token)
     return token
 

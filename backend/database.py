@@ -2,13 +2,12 @@ import sqlite3
 from datetime import datetime
 from backend.config import DB_PATH, DEFAULT_WORKPLACE
 
-def get_db():
-    conn = sqlite3.connect(DB_PATH, check_same_thread=False)
-    conn.row_factory = sqlite3.Row
-    return conn
+_db_initialized = False
 
 def init_db():
-    conn = get_db()
+    global _db_initialized
+    conn = sqlite3.connect(DB_PATH, check_same_thread=False)
+    conn.row_factory = sqlite3.Row
     cursor = conn.cursor()
 
     # 1. Employees Table
@@ -117,3 +116,20 @@ def init_db():
         conn.commit()
 
     conn.close()
+    _db_initialized = True
+
+def get_db():
+    global _db_initialized
+    if not _db_initialized:
+        try:
+            test_conn = sqlite3.connect(DB_PATH, check_same_thread=False)
+            cursor = test_conn.cursor()
+            cursor.execute("SELECT 1 FROM employees LIMIT 1")
+            test_conn.close()
+            _db_initialized = True
+        except Exception:
+            init_db()
+
+    conn = sqlite3.connect(DB_PATH, check_same_thread=False)
+    conn.row_factory = sqlite3.Row
+    return conn
