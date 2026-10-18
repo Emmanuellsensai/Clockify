@@ -164,6 +164,91 @@ def fetch_attendance_records(
     return [dict(row) for row in rows]
 
 
+def fetch_daily_roster(
+    date: Optional[str] = None,
+    department: Optional[str] = None,
+    status: Optional[str] = None,
+    late_only: bool = False,
+    search: Optional[str] = None
+) -> List[Dict[str, Any]]:
+    """
+    Returns the complete live attendance roster for ALL registered staff for the given date (default today).
+    Guarantees that all employees are accounted for with zero fluctuation:
+    - Active shifts are marked CLOCKED_IN
+    - Completed shifts are marked CLOCKED_OUT (Present)
+    - Employees not yet clocked in are marked NOT_CLOCKED_IN (Absent / Pending)
+    """
+    if not date or str(date).strip().lower() in ("today", "current"):
+        date_val = get_today_str()
+    else:
+        date_val = str(date).strip()
+
+    conn = get_db()
+    cursor = conn.cursor()
+
+    conditions = ["1=1"]
+    params: List[Any] = [date_val, date_val]
+
+    if department:
+        conditions.append("LOWER(e.department) = LOWER(?)")
+        params.append(department)
+
+    if status:
+        st_upper = status.upper()
+        if st_upper in ("ABSENT", "NOT_CLOCKED_IN"):
+            conditions.append("(a.status IS NULL OR a.status = 'NOT_CLOCKED_IN')")
+        else:
+            conditions.append("a.status = ?")
+            params.append(st_upper)
+
+    if late_only:
+        conditions.append("COALESCE(a.is_late, 0) = 1")
+
+    if search:
+        conditions.append("(LOWER(e.name) LIKE LOWER(?) OR LOWER(e.staff_id) LIKE LOWER(?))")
+        params.extend([f"%{search}%", f"%{search}%"])
+
+    where_clause = " AND ".join(conditions)
+
+    sql = f"""
+        SELECT 
+            e.id AS employee_id,
+            e.staff_id,
+            e.name,
+            e.department,
+            e.email,
+            COALESCE(a.date, ?) AS date,
+            a.id AS id,
+            a.clock_in_time,
+            a.clock_in_lat,
+            a.clock_in_lon,
+            a.clock_in_distance,
+            a.clock_out_time,
+            a.clock_out_lat,
+            a.clock_out_lon,
+            a.clock_out_distance,
+            COALESCE(a.status, 'NOT_CLOCKED_IN') AS status,
+            COALESCE(a.is_late, 0) AS is_late,
+            COALESCE(a.notes, 'Pending shift check-in') AS notes
+        FROM employees e
+        LEFT JOIN attendance_records a ON e.id = a.employee_id AND a.date = ?
+        WHERE {where_clause}
+        ORDER BY 
+            CASE 
+                WHEN a.status = 'CLOCKED_IN' THEN 1
+                WHEN a.status = 'CLOCKED_OUT' THEN 2
+                ELSE 3
+            END,
+            e.id ASC
+    """
+    cursor.execute(sql, tuple(params))
+    rows = cursor.fetchall()
+    conn.close()
+
+    return [dict(row) for row in rows]
+
+
+
 # ---------------------------------------------------------------------------
 # Analytics: daily summary
 # ---------------------------------------------------------------------------

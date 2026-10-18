@@ -1,14 +1,14 @@
 /**
  * Clockify — Admin Dashboard Controller (admin.js)
- * Exclusive Admin Authentication Gate, Live KPI Counters, Permanent Geofence Management,
- * Real-Time Multi-Device Attendance Log Sync & Authenticated CSV Export
+ * Exclusive Admin Authentication Gate, Live All-Staff Roster Monitoring,
+ * Zero-Flicker Multi-Device Real-Time Attendance Synchronization & Authenticated CSV Export
  */
 
 // Storage Keys
 const STORAGE_KEY_GEOFENCE = "clockify_permanent_geofence";
 const STORAGE_KEY_ADMIN_TOKEN = "clockify_admin_token";
 const STORAGE_KEY_ADMIN_USER = "clockify_admin_user";
-const STORAGE_KEY_FILTER_MODE = "clockify_admin_filter_mode";
+const STORAGE_KEY_VIEW_MODE = "clockify_admin_view_mode";
 
 // DOM Elements
 const adminElements = {
@@ -59,13 +59,13 @@ const adminElements = {
   toastContainer: document.getElementById("toastContainer")
 };
 
+// State Variables
 let allRecords = [];
-// Retrieve persistent filter view preference from localStorage (defaults to all records)
-const savedFilterMode = localStorage.getItem(STORAGE_KEY_FILTER_MODE);
-// By default, show all records so no database records are ever hidden!
-let showAllDates = (savedFilterMode !== "today");
+let lastRenderedJson = "";
+let currentViewMode = localStorage.getItem(STORAGE_KEY_VIEW_MODE) || "roster"; // 'roster' (Today's all-staff live status) or 'history' (session log)
+let selectedFilterDate = "";
 let autoRefreshTimer = null;
-const AUTO_REFRESH_INTERVAL_MS = 6000;
+const AUTO_REFRESH_INTERVAL_MS = 5000;
 
 function getLocalDateString(d = new Date()) {
   const y = d.getFullYear();
@@ -92,27 +92,13 @@ function getStoredAdminUser() {
 async function initAdmin() {
   setupAdminListeners();
 
-  // Set default filter date to today in local calendar time
   const today = getLocalDateString();
+  selectedFilterDate = today;
   if (adminElements.filterDate) {
     adminElements.filterDate.value = today;
-    adminElements.filterDate.disabled = true;
   }
 
-  // Restore persistent toggle button state
-  if (showAllDates) {
-    if (adminElements.lblToggleAllDates) adminElements.lblToggleAllDates.textContent = "Filter Today Only";
-    if (adminElements.btnToggleAllDates) {
-      adminElements.btnToggleAllDates.classList.add("btn-primary");
-      adminElements.btnToggleAllDates.classList.remove("btn-ghost");
-    }
-  } else {
-    if (adminElements.lblToggleAllDates) adminElements.lblToggleAllDates.textContent = "Show All Records";
-    if (adminElements.btnToggleAllDates) {
-      adminElements.btnToggleAllDates.classList.remove("btn-primary");
-      adminElements.btnToggleAllDates.classList.add("btn-ghost");
-    }
-  }
+  updateToggleViewButtonUI();
 
   if (adminElements.adminDateDisplay) {
     adminElements.adminDateDisplay.textContent = new Date().toLocaleDateString([], {
@@ -135,6 +121,19 @@ async function initAdmin() {
     console.warn("Stored admin token invalid or expired:", err);
     handleAdminLogout();
     showAdminLoginGate("Session expired. Please sign in again.");
+  }
+}
+
+function updateToggleViewButtonUI() {
+  if (!adminElements.lblToggleAllDates || !adminElements.btnToggleAllDates) return;
+  if (currentViewMode === "roster") {
+    adminElements.lblToggleAllDates.textContent = "📜 View All History";
+    adminElements.btnToggleAllDates.classList.add("btn-primary");
+    adminElements.btnToggleAllDates.classList.remove("btn-ghost");
+  } else {
+    adminElements.lblToggleAllDates.textContent = "📅 Today's Live Roster";
+    adminElements.btnToggleAllDates.classList.remove("btn-primary");
+    adminElements.btnToggleAllDates.classList.add("btn-ghost");
   }
 }
 
@@ -172,13 +171,36 @@ function showAdminDashboardUI() {
 
 // Fetch Metrics, Geofence, and Records
 async function refreshAllDashboardData(silent = false) {
-  const date = showAllDates ? null : "today";
   try {
+    let metricsDate = "today";
+    let recordsDate = null;
+    let viewParam = "roster";
+
+    if (currentViewMode === "roster") {
+      metricsDate = selectedFilterDate || "today";
+      recordsDate = selectedFilterDate || "today";
+      viewParam = "roster";
+    } else if (currentViewMode === "history") {
+      metricsDate = "today";
+      recordsDate = null;
+      viewParam = "history";
+    } else if (currentViewMode === "custom_date") {
+      metricsDate = selectedFilterDate;
+      recordsDate = selectedFilterDate;
+      viewParam = "roster";
+    }
+
     await Promise.all([
-      loadMetrics(date),
+      loadMetrics(metricsDate),
       loadGeofenceSettings(),
-      loadAttendanceRecords(date)
+      loadAttendanceRecords(recordsDate, viewParam)
     ]);
+
+    // Visual pulse on live sync pill
+    if (adminElements.liveSyncPill) {
+      adminElements.liveSyncPill.classList.add("synced");
+      setTimeout(() => adminElements.liveSyncPill.classList.remove("synced"), 1000);
+    }
   } catch (err) {
     if (!silent) {
       const msg = (err.message || "").toLowerCase();
@@ -197,10 +219,10 @@ async function loadMetrics(date) {
   try {
     const data = await ApiClient.getAdminMetrics(date);
     if (adminElements.kpiTotalStaff) adminElements.kpiTotalStaff.textContent = data.total_employees ?? "—";
-    if (adminElements.kpiPresent) adminElements.kpiPresent.textContent = data.total_present ?? "—";
-    if (adminElements.kpiClockedInNow) adminElements.kpiClockedInNow.textContent = data.clocked_in_now ?? "—";
-    if (adminElements.kpiLate) adminElements.kpiLate.textContent = data.late_arrivals ?? "—";
-    if (adminElements.kpiAbsent) adminElements.kpiAbsent.textContent = data.absent ?? "—";
+    if (adminElements.kpiPresent) adminElements.kpiPresent.textContent = data.total_present ?? "0";
+    if (adminElements.kpiClockedInNow) adminElements.kpiClockedInNow.textContent = data.clocked_in_now ?? "0";
+    if (adminElements.kpiLate) adminElements.kpiLate.textContent = data.late_arrivals ?? "0";
+    if (adminElements.kpiAbsent) adminElements.kpiAbsent.textContent = data.absent ?? "0";
   } catch (err) {
     console.error("Failed to load metrics:", err);
     throw err;
@@ -234,7 +256,6 @@ async function loadGeofenceSettings() {
                    parseFloat(geo.radius_meters) !== parseFloat(savedLocal.radius_meters);
       if (diff) {
         await ApiClient.updateGeofence(savedLocal);
-        console.log("Auto-synced permanent geofence to backend database");
       }
     } else {
       localStorage.setItem(STORAGE_KEY_GEOFENCE, JSON.stringify(geo));
@@ -249,11 +270,10 @@ async function loadGeofenceSettings() {
   }
 }
 
-// Load Attendance Records
-async function loadAttendanceRecords(date) {
+// Load Attendance Records with View Parameter
+async function loadAttendanceRecords(date, view = "roster") {
   try {
-    allRecords = await ApiClient.getAdminRecords(date);
-    // Apply any active text filter
+    allRecords = await ApiClient.getAdminRecords(date, null, view);
     const term = adminElements.searchEmployee ? adminElements.searchEmployee.value.trim().toLowerCase() : "";
     if (term) {
       filterAndRenderRecords(term);
@@ -266,7 +286,7 @@ async function loadAttendanceRecords(date) {
   }
 }
 
-// Render Table Rows with proper name & ID fallbacks
+// Zero-Flicker Table Renderer with Complete All-Staff Status
 function renderAttendanceTable(records) {
   function initials(name) {
     return (name || '?')
@@ -278,10 +298,17 @@ function renderAttendanceTable(records) {
       .toUpperCase() || 'ST';
   }
 
+  // Prevent flicker: if data has not changed, do not touch DOM
+  const newJson = JSON.stringify(records);
+  if (newJson === lastRenderedJson && adminElements.attendanceTableBody.children.length > 0) {
+    return;
+  }
+  lastRenderedJson = newJson;
+
   if (!records || records.length === 0) {
-    const subText = showAllDates
-      ? "No employee clock-in events have been recorded yet across any device."
-      : "No records found for the selected date. Click \"All Dates\" or adjust search filters.";
+    const subText = currentViewMode === "history"
+      ? "No historical clock-in / clock-out events found in the database."
+      : "No staff records found for the selected view.";
 
     adminElements.attendanceTableBody.innerHTML = `
       <tr><td colspan="7">
@@ -295,23 +322,46 @@ function renderAttendanceTable(records) {
   }
 
   adminElements.attendanceTableBody.innerHTML = records.map(r => {
-    // Robust employee name mapping
     const name = r.name || r.employee_name || (r.staff_id ? 'Staff ' + r.staff_id : 'Staff #' + r.employee_id);
     const dept = r.department || (r.staff_id ? r.staff_id : '');
     const isClockedOut = r.status === 'CLOCKED_OUT';
-    const active = r.status === 'CLOCKED_IN';
+    const isClockedIn = r.status === 'CLOCKED_IN';
+    const isAbsent = !r.status || r.status === 'NOT_CLOCKED_IN' || r.status === 'ABSENT';
+
+    // Time cell formatting
+    const inCell = r.clock_in_time
+      ? `<span class="td-time">${r.clock_in_time}</span>`
+      : `<span class="td-time td-na">—</span>`;
+
     const outCell = r.clock_out_time
       ? `<span class="td-time">${r.clock_out_time}</span>`
       : `<span class="td-time td-na">—</span>`;
+
     const gps = r.clock_in_distance != null
       ? `<div style="font-size:.7rem;color:var(--t3);margin-top:2px;font-family:var(--mono);">GPS ${r.clock_in_distance}m</div>`
       : '';
 
-    // An employee is only marked PRESENT once they clock out.
-    // While shift is active, they are marked as Clocked In.
-    const statusChip = isClockedOut
-      ? `<span class="chip chip-done">✓ Present</span>`
-      : `<span class="chip chip-in">● Clocked In</span>`;
+    // Status chip logic:
+    // CLOCKED_OUT -> Present (shift finished)
+    // CLOCKED_IN  -> Clocked In (active on-site)
+    // NOT_CLOCKED_IN / ABSENT -> Not Clocked In (awaiting check-in)
+    let statusChip = "";
+    let punctualityChip = "";
+
+    if (isClockedOut) {
+      statusChip = `<span class="chip chip-done">✓ Present</span>`;
+      punctualityChip = `<span class="chip ${r.is_late ? 'chip-late' : 'chip-ontime'}">${r.is_late ? '⏰ Late' : '✓ On Time'}</span>`;
+    } else if (isClockedIn) {
+      statusChip = `<span class="chip chip-in">● Clocked In</span>`;
+      punctualityChip = `<span class="chip ${r.is_late ? 'chip-late' : 'chip-ontime'}">${r.is_late ? '⏰ Late' : '✓ On Time'}</span>`;
+    } else {
+      statusChip = `<span class="chip chip-absent">○ Not Clocked In</span>`;
+      punctualityChip = `<span class="chip chip-pending">— Pending</span>`;
+    }
+
+    const notesText = isAbsent
+      ? 'Awaiting shift clock-in'
+      : (r.notes || 'GPS Verified');
 
     return `<tr>
       <td>
@@ -323,12 +373,12 @@ function renderAttendanceTable(records) {
           </div>
         </div>
       </td>
-      <td style="white-space:nowrap;color:var(--t2);font-size:.84rem;">${r.date}</td>
-      <td><span class="td-time">${r.clock_in_time || '<span class="td-na">—</span>'}</span>${gps}</td>
+      <td style="white-space:nowrap;color:var(--t2);font-size:.84rem;">${r.date || 'Today'}</td>
+      <td>${inCell}${gps}</td>
       <td>${outCell}</td>
       <td>${statusChip}</td>
-      <td><span class="chip ${r.is_late ? 'chip-late' : 'chip-ontime'}">${r.is_late ? '⏰ Late' : '✓ On Time'}</span></td>
-      <td style="font-size:.78rem;color:var(--t3);">${r.notes || 'GPS Verified'}</td>
+      <td>${punctualityChip}</td>
+      <td style="font-size:.78rem;color:var(--t3);">${notesText}</td>
     </tr>`;
   }).join('');
 }
@@ -521,7 +571,6 @@ function setupAdminListeners() {
       navHamburger.setAttribute("aria-expanded", isOpen ? "true" : "false");
     });
 
-    // Close mobile menu when clicking outside
     document.addEventListener("click", (e) => {
       if (!navHamburger.contains(e.target) && !navActions.contains(e.target)) {
         navActions.classList.remove("is-open");
@@ -530,7 +579,6 @@ function setupAdminListeners() {
       }
     });
 
-    // Close when tapping an action link
     navActions.querySelectorAll("a, button").forEach(item => {
       item.addEventListener("click", () => {
         navActions.classList.remove("is-open");
@@ -540,25 +588,19 @@ function setupAdminListeners() {
     });
   }
 
-  // Toggle All Dates vs Today Only
+  // Toggle View: Today's Live Roster (All Staff) vs Complete History Log
   if (adminElements.btnToggleAllDates) {
     adminElements.btnToggleAllDates.addEventListener("click", async () => {
-      showAllDates = !showAllDates;
-      localStorage.setItem(STORAGE_KEY_FILTER_MODE, showAllDates ? "all" : "today");
-      if (showAllDates) {
-        adminElements.lblToggleAllDates.textContent = "Filter Today Only";
-        adminElements.btnToggleAllDates.classList.add("btn-primary");
-        adminElements.btnToggleAllDates.classList.remove("btn-ghost");
-        if (adminElements.filterDate) adminElements.filterDate.disabled = true;
+      if (currentViewMode === "roster") {
+        currentViewMode = "history";
       } else {
-        adminElements.lblToggleAllDates.textContent = "Show All Records";
-        adminElements.btnToggleAllDates.classList.remove("btn-primary");
-        adminElements.btnToggleAllDates.classList.add("btn-ghost");
-        if (adminElements.filterDate) {
-          adminElements.filterDate.disabled = true;
-          adminElements.filterDate.value = getLocalDateString();
-        }
+        currentViewMode = "roster";
+        selectedFilterDate = getLocalDateString();
+        if (adminElements.filterDate) adminElements.filterDate.value = selectedFilterDate;
       }
+      localStorage.setItem(STORAGE_KEY_VIEW_MODE, currentViewMode);
+      updateToggleViewButtonUI();
+      lastRenderedJson = ""; // force fresh render
       await refreshAllDashboardData();
     });
   }
@@ -566,15 +608,23 @@ function setupAdminListeners() {
   // Apply Date Filter
   if (adminElements.btnApplyFilters) {
     adminElements.btnApplyFilters.addEventListener("click", async () => {
-      showAllDates = false;
-      localStorage.setItem(STORAGE_KEY_FILTER_MODE, "custom");
-      if (adminElements.lblToggleAllDates) adminElements.lblToggleAllDates.textContent = "Show All Records";
-      if (adminElements.btnToggleAllDates) {
-        adminElements.btnToggleAllDates.classList.remove("btn-primary");
-        adminElements.btnToggleAllDates.classList.add("btn-ghost");
+      const chosen = adminElements.filterDate ? adminElements.filterDate.value : "";
+      if (chosen) {
+        selectedFilterDate = chosen;
+        currentViewMode = "custom_date";
+        if (adminElements.lblToggleAllDates) adminElements.lblToggleAllDates.textContent = "📅 Today's Live Roster";
+        if (adminElements.btnToggleAllDates) {
+          adminElements.btnToggleAllDates.classList.remove("btn-primary");
+          adminElements.btnToggleAllDates.classList.add("btn-ghost");
+        }
+      } else {
+        currentViewMode = "roster";
+        selectedFilterDate = getLocalDateString();
+        updateToggleViewButtonUI();
       }
-      if (adminElements.filterDate) adminElements.filterDate.disabled = false;
+      lastRenderedJson = "";
       await refreshAllDashboardData();
+      showToast(`Showing attendance records for ${selectedFilterDate}`, "info");
     });
   }
 
@@ -588,7 +638,7 @@ function setupAdminListeners() {
   // Export CSV with attached token for authenticated download
   if (adminElements.btnExportCsv) {
     adminElements.btnExportCsv.addEventListener("click", () => {
-      const date = showAllDates ? null : "today";
+      const date = (currentViewMode === "roster" || currentViewMode === "custom_date") ? (selectedFilterDate || "today") : null;
       const token = getStoredAdminToken();
       const params = new URLSearchParams();
       if (token) params.append("token", token);
@@ -603,7 +653,11 @@ function setupAdminListeners() {
     adminElements.btnSeedDemo.addEventListener("click", async () => {
       try {
         await ApiClient.seedDemo();
-        showToast("Demo attendance records seeded across staff members!", "success");
+        showToast("Demo attendance records seeded across all 10 employees for today!", "success");
+        currentViewMode = "roster";
+        selectedFilterDate = getLocalDateString();
+        updateToggleViewButtonUI();
+        lastRenderedJson = "";
         await refreshAllDashboardData();
       } catch (err) {
         showToast(err.message, "error");
@@ -612,7 +666,7 @@ function setupAdminListeners() {
   }
 }
 
-// Toast
+// Toast Notifications
 const ADMIN_ICONS = { success: '✓', error: '✕', warning: '⚠', info: 'ℹ' };
 function showToast(message, type = 'info') {
   if (!adminElements.toastContainer) return;

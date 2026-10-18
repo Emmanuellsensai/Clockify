@@ -20,6 +20,7 @@ from backend.services.reports import (
     generate_daily_report,
     generate_range_report,
     fetch_attendance_records,
+    fetch_daily_roster,
     stream_attendance_csv,
     export_attendance_json,
     validate_date,
@@ -159,11 +160,16 @@ def get_attendance_records(
     end_date: Optional[str] = Query(None, description="Range end (YYYY-MM-DD, inclusive)."),
     employee_id: Optional[int] = Query(None, description="Filter by employee primary ID."),
     department: Optional[str] = Query(None, description="Filter by department (case-insensitive)."),
-    status: Optional[str] = Query(None, description="Filter by status: CLOCKED_IN or CLOCKED_OUT."),
+    status: Optional[str] = Query(None, description="Filter by status: CLOCKED_IN, CLOCKED_OUT, or NOT_CLOCKED_IN/ABSENT."),
     late_only: bool = Query(False, description="Return only late arrivals."),
-    search: Optional[str] = Query(None, description="Search employee name or staff ID.")
+    search: Optional[str] = Query(None, description="Search employee name or staff ID."),
+    view: Optional[str] = Query(None, description="View mode: 'roster' (complete live roster for all staff) or 'history' (logged sessions only)")
 ):
-    """Retrieve attendance records with optional date, range and employee filters."""
+    """
+    Retrieve attendance records.
+    - When view='roster' (or by default for today's live monitoring): returns the complete status of all staff members.
+    - When view='history' or when querying date ranges: returns logged clock-in / clock-out session events.
+    """
     response.headers["Cache-Control"] = "no-cache, no-store, must-revalidate, max-age=0"
     response.headers["Pragma"] = "no-cache"
     try:
@@ -172,6 +178,19 @@ def get_attendance_records(
 
         if day and (start or end):
             raise ValueError("Use either 'date' or 'start_date'/'end_date', not both.")
+
+        # If live roster view is requested (or default single-day monitoring when not querying historical ranges/employee)
+        today_str = get_today_str()
+        is_today_or_single_day = (day is not None and not start and not end and not employee_id) or (date is None and not start and not end and not employee_id)
+        if view == "roster" or (view != "history" and is_today_or_single_day):
+            target_day = day or today_str
+            return fetch_daily_roster(
+                date=target_day,
+                department=department,
+                status=status,
+                late_only=late_only,
+                search=search
+            )
 
         if status and status.upper() not in VALID_STATUSES:
             raise ValueError(
@@ -190,6 +209,7 @@ def get_attendance_records(
         raise HTTPException(status_code=422, detail=str(exc))
 
     return [AttendanceModel.to_dict(record) for record in records]
+
 
 
 # ---------------------------------------------------------------------------

@@ -280,9 +280,12 @@ table.data-tbl tbody tr:hover td { background: rgba(255,255,255,.025); }
   letter-spacing: .05em; border: 1px solid; white-space: nowrap;
 }
 .chip-in     { color: var(--green-4); border-color: rgba(74,222,128,.3); background: rgba(74,222,128,.08); }
-.chip-done   { color: var(--t2); border-color: rgba(100,116,139,.2); background: rgba(100,116,139,.08); }
+.chip-done   { color: var(--emerald-4, #34d399); border-color: rgba(52,211,153,.35); background: rgba(52,211,153,.1); }
 .chip-ontime { color: var(--green-4); border-color: rgba(74,222,128,.3); background: rgba(74,222,128,.08); }
 .chip-late   { color: var(--amber-4); border-color: rgba(251,191,36,.3); background: rgba(251,191,36,.08); }
+.chip-absent { color: #f87171; border-color: rgba(248,113,113,.35); background: rgba(248,113,113,.08); }
+.chip-pending { color: var(--t3); border-color: var(--b2); background: rgba(255,255,255,.02); border-style: dashed; }
+
 
 /* table empty */
 .tbl-empty { display: flex; flex-direction: column; align-items: center; gap: .6rem; padding: 3.5rem 2rem; color: var(--t3); }

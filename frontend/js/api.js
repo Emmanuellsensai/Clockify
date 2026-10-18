@@ -157,10 +157,11 @@ const ApiClient = {
     return this.get(`/api/admin/metrics${q}`);
   },
 
-  getAdminRecords(date, employeeId) {
+  getAdminRecords(date, employeeId, view) {
     const params = new URLSearchParams();
     if (date) params.append("date", date);
     if (employeeId) params.append("employee_id", employeeId);
+    if (view) params.append("view", view);
     const q = params.toString() ? `?${params.toString()}` : "";
     return this.get(`/api/admin/records${q}`);
   },
